@@ -12,7 +12,7 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
-    "types": ["google.maps"],
+    "types": ["google.maps", "vite/client"],
     "jsx": "react-jsx",
 
     /* Linting */

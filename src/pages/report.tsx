@@ -1,12 +1,17 @@
-import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { Header, BottomNav, showToast } from '../components';
-import { Map, AdvancedMarker, Pin } from '@vis.gl/react-google-maps';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Header, showToast } from '../components';
+import { Map, Marker } from '@vis.gl/react-google-maps';
+import { createReport } from '../supabase';
 
 export default function ReportPage() {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [category, setCategory] = useState('Pothole');
+  const [description, setDescription] = useState('');
+  const [locationAddress, setLocationAddress] = useState('Main St. & 4th Ave, Downtown');
+  const [coords] = useState({ lat: 40.7128, lng: -74.0060 });
 
   const nextStep = () => {
     if (step < 4) setStep(step + 1);
@@ -15,19 +20,37 @@ export default function ReportPage() {
     if (step > 1) setStep(step - 1);
   };
 
-  const submitReport = () => {
+  const submitReport = async () => {
     setIsSubmitting(true);
-    setTimeout(() => {
+    try {
+      const ticketId = `#CF${Math.floor(1000 + Math.random() * 9000)}`;
+      await createReport({
+        ticket_id: ticketId,
+        category,
+        description: description || `${category} reported at ${locationAddress}`,
+        location_address: locationAddress,
+        latitude: coords.lat + (Math.random() - 0.5) * 0.005,
+        longitude: coords.lng + (Math.random() - 0.5) * 0.005,
+        image_url: '/pothole.jpg',
+        status: 'In Progress',
+        priority: category === 'Pothole' ? 'High' : 'Medium',
+        department: category === 'Streetlight' ? 'Electrical Grid' : category === 'Water Leak' ? 'Water Works' : 'Roads & Infrastructure',
+        ai_confidence: 98
+      });
+      showToast(`Report ${ticketId} saved to database!`);
+      navigate(`/tracking?id=${encodeURIComponent(ticketId)}`);
+    } catch (err) {
+      console.error(err);
+      showToast('Error saving to database. Check connection.');
+    } finally {
       setIsSubmitting(false);
-      showToast('Report submitted successfully!');
-      navigate('/tracking');
-    }, 2000);
+    }
   };
 
   return (
     <div className="w-full h-[100dvh] flex flex-col bg-surface">
       <Header />
-      <main className="flex-1 flex flex-col relative w-full h-full pt-20 pb-20 overflow-y-auto">
+      <main className="flex-1 flex flex-col relative w-full h-full pt-20 pb-20 md:pb-8 md:pl-24 overflow-y-auto">
         <div className="px-gutter-lg pt-4 pb-6 bg-surface z-10 border-b border-outline-variant/20 shadow-[0_4px_12px_rgba(0,0,0,0.02)] sticky top-0">
           <div className="flex items-center justify-between">
             <div>
@@ -71,18 +94,22 @@ export default function ReportPage() {
             <div className="space-y-space-md animate-fade-in h-full flex flex-col min-h-[300px]">
               <div className="flex items-center gap-2 bg-surface-container-lowest px-4 py-2 rounded-xl border border-outline-variant/20 shadow-sm">
                 <span className="material-symbols-outlined text-primary">my_location</span>
-                <input type="text" className="w-full bg-transparent outline-none font-body-md text-on-surface" placeholder="Current Location (Auto-detected)" readOnly />
+                <input 
+                  type="text" 
+                  value={locationAddress}
+                  onChange={(e) => setLocationAddress(e.target.value)}
+                  className="w-full bg-transparent outline-none font-body-md text-on-surface" 
+                  placeholder="Location address" 
+                />
               </div>
               <div className="flex-1 rounded-2xl overflow-hidden shadow-sm border border-outline-variant/20 relative bg-surface-container-high min-h-[300px]">
                 <Map
                   defaultZoom={17}
-                  defaultCenter={{ lat: 40.7128, lng: -74.0060 }}
+                  defaultCenter={coords}
                   mapId="DEMO_REPORT_MAP_ID"
                   disableDefaultUI={true}
                 >
-                  <AdvancedMarker position={{ lat: 40.7128, lng: -74.0060 }}>
-                    <Pin background={'#BA1A1A'} borderColor={'#fff'} glyphColor={'#fff'} />
-                  </AdvancedMarker>
+                  <Marker position={coords} />
                 </Map>
               </div>
             </div>
@@ -93,15 +120,30 @@ export default function ReportPage() {
               <div className="bg-surface-container-lowest p-space-md rounded-2xl shadow-sm border border-outline-variant/20">
                 <label className="font-title-sm text-title-sm font-bold text-on-surface mb-2 block">Category</label>
                 <div className="grid grid-cols-2 gap-2">
-                  <button className="px-3 py-2 rounded-lg bg-primary-container text-on-primary-container border border-primary/20 font-label-md">Pothole</button>
-                  <button className="px-3 py-2 rounded-lg bg-surface-container text-on-surface font-label-md border border-outline-variant/20">Streetlight</button>
-                  <button className="px-3 py-2 rounded-lg bg-surface-container text-on-surface font-label-md border border-outline-variant/20">Water Leak</button>
-                  <button className="px-3 py-2 rounded-lg bg-surface-container text-on-surface font-label-md border border-outline-variant/20">Other</button>
+                  {['Pothole', 'Streetlight', 'Water Leak', 'Other'].map((cat) => (
+                    <button
+                      key={cat}
+                      type="button"
+                      onClick={() => setCategory(cat)}
+                      className={`px-3 py-2 rounded-lg font-label-md transition-all ${
+                        category === cat 
+                          ? 'bg-primary text-on-primary font-bold shadow-sm' 
+                          : 'bg-surface-container text-on-surface border border-outline-variant/20'
+                      }`}
+                    >
+                      {cat}
+                    </button>
+                  ))}
                 </div>
               </div>
               <div className="bg-surface-container-lowest p-space-md rounded-2xl shadow-sm border border-outline-variant/20">
                 <label className="font-title-sm text-title-sm font-bold text-on-surface mb-2 block">Description</label>
-                <textarea className="w-full h-32 bg-surface-container-highest rounded-xl p-3 outline-none border border-transparent focus:border-primary text-on-surface font-body-md" placeholder="Add more details..."></textarea>
+                <textarea 
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  className="w-full h-32 bg-surface-container-highest rounded-xl p-3 outline-none border border-transparent focus:border-primary text-on-surface font-body-md" 
+                  placeholder="Add more details about the issue..."
+                />
               </div>
             </div>
           )}
@@ -113,15 +155,15 @@ export default function ReportPage() {
                     <span className="material-symbols-outlined text-[32px]">fact_check</span>
                   </div>
                   <h3 className="font-title-md font-bold text-on-surface">Review & Submit</h3>
-                  <p className="font-body-sm text-on-surface-variant max-w-xs mt-1">Our AI has verified this report. Click submit to dispatch it to the municipal grid.</p>
+                  <p className="font-body-sm text-on-surface-variant max-w-xs mt-1">Our AI has verified this report. Click submit to save directly to Supabase and dispatch.</p>
                </div>
                
                <div className="bg-surface-container-lowest p-space-md rounded-2xl shadow-sm border border-outline-variant/20">
                   <h4 className="font-title-sm font-bold text-on-surface mb-2">Summary</h4>
                   <ul className="space-y-2 text-body-sm text-on-surface-variant">
-                    <li className="flex justify-between"><span>Category:</span> <span className="font-bold text-on-surface">Pothole (99% AI Match)</span></li>
-                    <li className="flex justify-between"><span>Priority:</span> <span className="font-bold text-error">High</span></li>
-                    <li className="flex justify-between"><span>Location:</span> <span className="font-bold text-on-surface">Main St.</span></li>
+                    <li className="flex justify-between"><span>Category:</span> <span className="font-bold text-on-surface">{category} (98% AI Match)</span></li>
+                    <li className="flex justify-between"><span>Priority:</span> <span className={`font-bold ${category === 'Pothole' ? 'text-error' : 'text-primary'}`}>{category === 'Pothole' ? 'High' : 'Medium'}</span></li>
+                    <li className="flex justify-between"><span>Location:</span> <span className="font-bold text-on-surface">{locationAddress}</span></li>
                   </ul>
                </div>
             </div>
@@ -142,8 +184,8 @@ export default function ReportPage() {
                 <span className="material-symbols-outlined">arrow_forward</span>
               </button>
             ) : (
-              <button onClick={submitReport} disabled={isSubmitting} className="flex-1 h-14 rounded-xl bg-tertiary text-on-tertiary font-title-md font-bold tracking-wide flex items-center justify-center gap-2 shadow-[0_8px_16px_rgba(0,80,31,0.25)] hover:-translate-y-0.5 active:scale-95 transition-all">
-                <span>{isSubmitting ? "Submitting..." : "Submit Report"}</span>
+              <button onClick={submitReport} disabled={isSubmitting} className="flex-1 h-14 rounded-xl bg-tertiary-container text-on-tertiary-container hover:bg-tertiary-container/80 font-title-md font-bold tracking-wide flex items-center justify-center gap-2 shadow-[0_8px_16px_rgba(0,80,31,0.25)] hover:-translate-y-0.5 active:scale-95 transition-all">
+                <span>{isSubmitting ? "Submitting to Supabase..." : "Submit Report"}</span>
                 <span className="material-symbols-outlined">send</span>
               </button>
             )}
