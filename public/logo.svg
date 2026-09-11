@@ -1,0 +1,18 @@
+<svg viewBox="0 0 256 320" xmlns="http://www.w3.org/2000/svg">
+  <!-- Map Pin Base -->
+  <path d="M128 0 C57.3 0 0 57.3 0 128 C0 190 60 260 128 320 C196 260 256 190 256 128 C256 57.3 198.7 0 128 0 Z" fill="#2563eb"/>
+  
+  <!-- Cityscape Cutout -->
+  <path d="M50 145 h156 v50 h-156 z" fill="#dbeafe"/>
+  <path d="M80 105 h100 v40 h-100 z" fill="#dbeafe"/>
+  <path d="M110 65 h40 v40 h-40 z" fill="#dbeafe"/>
+
+  <!-- Status Badge Background (White Border) -->
+  <circle cx="185" cy="75" r="42" fill="#ffffff"/>
+  
+  <!-- Status Badge Fill (Green) -->
+  <circle cx="185" cy="75" r="32" fill="#10b981"/>
+  
+  <!-- Checkmark -->
+  <path d="M170 75 l10 10 l22 -22" stroke="#ffffff" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+</svg>
