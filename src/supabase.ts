@@ -62,3 +62,35 @@ export async function createReport(report: Omit<CivicReport, 'id' | 'created_at'
   }
   return data as CivicReport;
 }
+
+export async function updateReport(id: string, updates: Partial<CivicReport>) {
+  const { data, error } = await supabase
+    .from('reports')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error updating report:', error);
+    throw error;
+  }
+  return data as CivicReport;
+}
+
+export async function uploadImage(file: File): Promise<string> {
+  const fileExt = file.name.split('.').pop();
+  const fileName = `${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
+  const filePath = `${fileName}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from('photos')
+    .upload(filePath, file);
+
+  if (uploadError) {
+    throw uploadError;
+  }
+
+  const { data } = supabase.storage.from('photos').getPublicUrl(filePath);
+  return data.publicUrl;
+}

@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Header, showToast } from '../components';
 import { Map, Marker } from '@vis.gl/react-google-maps';
-import { createReport } from '../supabase';
+import { createReport, uploadImage } from '../supabase';
 
 export default function ReportPage() {
   const navigate = useNavigate();
@@ -12,6 +12,88 @@ export default function ReportPage() {
   const [description, setDescription] = useState('');
   const [locationAddress, setLocationAddress] = useState('Main St. & 4th Ave, Downtown');
   const [coords] = useState({ lat: 40.7128, lng: -74.0060 });
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      
+      // Check file size (200KB limit)
+      if (file.size > 200 * 1024) {
+        showToast('Image must be less than 200KB');
+        return;
+      }
+
+      setIsUploading(true);
+      try {
+        const publicUrl = await uploadImage(file);
+        setPreviewUrl(publicUrl);
+        showToast('Image uploaded successfully');
+      } catch (err) {
+        console.error('Upload failed:', err);
+        showToast('Upload failed. Ensure public "photos" bucket exists.');
+      } finally {
+        setIsUploading(false);
+      }
+    }
+  };
+
+  useEffect(() => {
+    if ((window as any).gapi) {
+      (window as any).gapi.load('picker', () => {
+        console.log('Picker loaded');
+      });
+    }
+  }, []);
+
+  const handleGoogleDrivePicker = () => {
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+    const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+    
+    if (!clientId || clientId === 'YOUR_CLIENT_ID_HERE') {
+      showToast('Please add VITE_GOOGLE_CLIENT_ID to .env.local');
+      return;
+    }
+
+    const tokenClient = (window as any).google.accounts.oauth2.initTokenClient({
+      client_id: clientId,
+      scope: 'https://www.googleapis.com/auth/drive.readonly',
+      callback: (tokenResponse: any) => {
+        if (tokenResponse.error !== undefined) {
+          showToast('Authentication failed');
+          return;
+        }
+        createPicker(tokenResponse.access_token, apiKey);
+      },
+    });
+
+    tokenClient.requestAccessToken({ prompt: '' });
+  };
+
+  const createPicker = (accessToken: string, apiKey: string) => {
+    const google = (window as any).google;
+    const view = new google.picker.DocsView(google.picker.ViewId.DOCS);
+    view.setMimeTypes('image/png,image/jpeg,image/jpg');
+    
+    const picker = new google.picker.PickerBuilder()
+      .enableFeature(google.picker.Feature.NAV_HIDDEN)
+      .setDeveloperKey(apiKey)
+      .setOAuthToken(accessToken)
+      .addView(view)
+      .setCallback((data: any) => {
+        if (data[google.picker.Response.ACTION] === google.picker.Action.PICKED) {
+          const doc = data[google.picker.Response.DOCUMENTS][0];
+          const fileId = doc[google.picker.Document.ID];
+          // Create a direct link for public images
+          const directLink = `https://drive.google.com/uc?id=${fileId}`;
+          setPreviewUrl(directLink);
+        }
+      })
+      .build();
+      
+    picker.setVisible(true);
+  };
 
   const nextStep = () => {
     if (step < 4) setStep(step + 1);
@@ -31,7 +113,7 @@ export default function ReportPage() {
         location_address: locationAddress,
         latitude: coords.lat + (Math.random() - 0.5) * 0.005,
         longitude: coords.lng + (Math.random() - 0.5) * 0.005,
-        image_url: '/pothole.jpg',
+        image_url: previewUrl || '/pothole.jpg',
         status: 'In Progress',
         priority: category === 'Pothole' ? 'High' : 'Medium',
         department: category === 'Streetlight' ? 'Electrical Grid' : category === 'Water Leak' ? 'Water Works' : 'Roads & Infrastructure',
@@ -80,13 +162,50 @@ export default function ReportPage() {
         <div className="flex-1 relative p-gutter-lg pb-8">
           {step === 1 && (
             <div className="space-y-space-md animate-fade-in">
-              <div className="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm border border-outline-variant/20 flex flex-col items-center justify-center text-center gap-space-sm border-dashed border-2 cursor-pointer hover:bg-surface-container-low transition-colors min-h-[300px]" onClick={nextStep}>
-                <div className="w-20 h-20 rounded-full bg-primary/10 text-primary flex items-center justify-center mb-2 shadow-inner">
-                  <span className="material-symbols-outlined text-[36px]">add_a_photo</span>
+              {previewUrl ? (
+                <div className="relative bg-surface-container-lowest rounded-2xl p-4 shadow-sm border border-outline-variant/20 flex flex-col items-center">
+                  <img src={previewUrl} alt="Preview" className="max-h-[300px] rounded-xl object-contain mb-4" />
+                  <button onClick={() => setPreviewUrl(null)} className="px-4 py-2 bg-surface-container-high rounded-xl text-on-surface hover:bg-surface-container transition-colors">
+                    Remove Image
+                  </button>
                 </div>
-                <h3 className="font-title-md text-title-md text-on-surface font-bold">Tap to capture or upload</h3>
-                <p className="font-body-sm text-body-sm text-on-surface-variant max-w-xs">Clear photos help our AI instantly categorize the issue and assign the right municipal crew.</p>
-              </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 min-h-[300px]">
+                  <label className={`bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm border border-outline-variant/20 flex flex-col items-center justify-center text-center gap-space-sm border-dashed border-2 cursor-pointer transition-colors ${isUploading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-surface-container-low'}`}>
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      className="hidden" 
+                      onChange={handleFileUpload} 
+                      disabled={isUploading}
+                    />
+                    <div className="w-16 h-16 rounded-full bg-primary/10 text-primary flex items-center justify-center mb-2 shadow-inner">
+                      {isUploading ? (
+                        <div className="animate-spin rounded-full h-8 w-8 border-4 border-primary border-t-transparent"></div>
+                      ) : (
+                        <span className="material-symbols-outlined text-[32px]">upload_file</span>
+                      )}
+                    </div>
+                    <h3 className="font-title-md text-title-md text-on-surface font-bold">
+                      {isUploading ? 'Uploading...' : 'Upload from Device'}
+                    </h3>
+                    <p className="font-body-sm text-body-sm text-on-surface-variant max-w-xs">
+                      Max size: 200KB
+                    </p>
+                  </label>
+
+                  <div 
+                    className="w-full bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm border border-outline-variant/20 flex flex-col items-center justify-center text-center gap-space-sm border-dashed border-2 cursor-pointer hover:bg-surface-container-low transition-colors"
+                    onClick={handleGoogleDrivePicker}
+                  >
+                    <div className="w-16 h-16 rounded-full bg-surface-container-high text-[#1FA463] flex items-center justify-center mb-2 shadow-inner relative overflow-hidden">
+                       <span className="material-symbols-outlined text-[32px] text-[#FFC107]">add_to_drive</span>
+                    </div>
+                    <h3 className="font-title-md text-title-md text-on-surface font-bold">Import from Google Drive</h3>
+                    <p className="font-body-sm text-body-sm text-on-surface-variant max-w-xs">Securely select photos from your Google Drive</p>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

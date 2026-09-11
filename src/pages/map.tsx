@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Header, BottomNav } from '../components';
-import { Map, Marker } from '@vis.gl/react-google-maps';
+import { Header, BottomNav, showToast } from '../components';
+import { Map, Marker, useMap } from '@vis.gl/react-google-maps';
 import { fetchReports, CivicReport } from '../supabase';
 
 export default function MapPage() {
@@ -10,6 +10,44 @@ export default function MapPage() {
   const [reports, setReports] = useState<CivicReport[]>([]);
   const [filter, setFilter] = useState('All');
   const [searchTerm, setSearchTerm] = useState('');
+  const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
+  const [hasRequestedLoc, setHasRequestedLoc] = useState(false);
+  const map = useMap("DEMO_MAP_ID");
+
+  const locateUser = (silent = false) => {
+    if (!navigator.geolocation) {
+      if (!silent) showToast("Geolocation is not supported by your browser.");
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const pos = {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        };
+        setUserLocation(pos);
+        if (map) {
+          map.panTo(pos);
+          map.setZoom(15);
+        }
+      },
+      (error) => {
+        console.error("Geolocation error:", error);
+        if (!silent) {
+          showToast("Location Error: Unable to fetch location.");
+        }
+      },
+      { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+    );
+  };
+
+  useEffect(() => {
+    if (map && !hasRequestedLoc) {
+      setHasRequestedLoc(true);
+      locateUser(true); // run silently on initial load
+    }
+  }, [map, hasRequestedLoc]);
 
   useEffect(() => {
     async function load() {
@@ -70,6 +108,14 @@ export default function MapPage() {
                 title={`${issue.ticket_id} - ${issue.category}`}
               />
             ))}
+            {userLocation && (
+              <Marker 
+                position={userLocation} 
+                icon="https://maps.google.com/mapfiles/ms/icons/blue-dot.png" 
+                title="Your Location"
+                zIndex={100}
+              />
+            )}
           </Map>
         </div>
 
@@ -139,7 +185,7 @@ export default function MapPage() {
           )}
         </div>
         
-        <button className="absolute bottom-24 right-4 md:bottom-8 md:right-8 z-10 w-12 h-12 rounded-full bg-surface-container-lowest text-primary shadow-lg border border-outline-variant/20 flex items-center justify-center hover:bg-surface-container-low transition-colors active:scale-95 pointer-events-auto" type="button" aria-label="Recenter map">
+        <button onClick={() => locateUser(false)} className="absolute bottom-24 right-4 md:bottom-8 md:right-8 z-10 w-12 h-12 rounded-full bg-surface-container-lowest text-primary shadow-lg border border-outline-variant/20 flex items-center justify-center hover:bg-surface-container-low transition-colors active:scale-95 pointer-events-auto" type="button" aria-label="Recenter map">
           <span className="material-symbols-outlined">my_location</span>
         </button>
       </main>
