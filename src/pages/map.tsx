@@ -183,7 +183,7 @@ export default function MapPage() {
           </Map>
         </div>
 
-        <div className="absolute top-24 left-4 right-4 md:left-32 md:right-auto z-10 flex flex-col gap-3 pointer-events-none">
+        <div className="absolute top-[110px] md:top-28 left-4 right-4 md:left-32 md:right-auto z-10 flex flex-col gap-3 pointer-events-none">
           <div className="pointer-events-auto bg-surface-container-lowest/80 backdrop-blur-xl rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.08)] border border-outline-variant/30 p-2.5 flex items-center gap-3 w-full md:w-96 transition-all focus-within:bg-surface-container-lowest focus-within:shadow-[0_8px_32px_rgba(0,55,176,0.15)] focus-within:border-primary/30">
             <span className="material-symbols-outlined text-on-surface-variant pl-2">search</span>
             <input 

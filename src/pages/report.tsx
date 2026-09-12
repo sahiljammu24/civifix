@@ -3,18 +3,25 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Header, showToast } from '../components';
 import { Map, Marker, useMap, useMapsLibrary, MapMouseEvent } from '@vis.gl/react-google-maps';
 import { createReport, uploadImage } from '../supabase';
+import { useAuth } from '../contexts/AuthContext';
+import emailjs from '@emailjs/browser';
 
 export default function ReportPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { user, profile } = useAuth();
   const urlLat = searchParams.get('lat');
   const urlLng = searchParams.get('lng');
   const hasUrlCoords = urlLat !== null && urlLng !== null;
 
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [category, setCategory] = useState('Pothole');
+  const [category, setCategory] = useState('Pothole / Road Damage');
   const [description, setDescription] = useState('');
+  const [severity, setSeverity] = useState('Medium');
+  const [isHazard, setIsHazard] = useState(false);
+  const [isConfirmed, setIsConfirmed] = useState(false);
+  const [isLocating, setIsLocating] = useState(false);
   const [locationAddress, setLocationAddress] = useState(hasUrlCoords ? 'Loading address...' : 'LPU');
   const [coords, setCoords] = useState(
     hasUrlCoords
@@ -274,7 +281,72 @@ export default function ReportPage() {
     picker.setVisible(true);
   };
 
+  const handleLocateMe = () => {
+    setIsLocating(true);
+    
+    const fallbackToIP = async () => {
+      try {
+        const res = await fetch('https://ipapi.co/json/');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.latitude && data.longitude) {
+            const lat = Number(data.latitude);
+            const lng = Number(data.longitude);
+            setCoords({ lat, lng });
+            setPinDropped(true);
+            reverseGeocode(lat, lng);
+            if (map) {
+              map.panTo({ lat, lng });
+              map.setZoom(15);
+            }
+            setIsLocating(false);
+            showToast('📍 Approximate location found via IP');
+            return;
+          }
+        }
+      } catch {
+        // ignore
+      }
+      setIsLocating(false);
+      showToast('Unable to get location. Please check GPS settings.');
+    };
+
+    if (!navigator.geolocation) {
+      fallbackToIP();
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+        setCoords({ lat, lng });
+        setPinDropped(true);
+        reverseGeocode(lat, lng);
+        if (map) {
+          map.panTo({ lat, lng });
+          map.setZoom(18);
+        }
+        setIsLocating(false);
+        showToast('📍 Location updated successfully');
+      },
+      (error) => {
+        console.warn("Geolocation error, trying IP fallback:", error);
+        fallbackToIP();
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+  };
+
   const nextStep = () => {
+    if (step === 2 && !previewUrl) {
+      showToast('Photo evidence is mandatory to proceed.');
+      return;
+    }
+    if (step === 3 && description.trim().length < 20) {
+      showToast('Please provide a more detailed description (min 20 chars).');
+      return;
+    }
     if (step < 4) setStep(step + 1);
   };
   const prevStep = () => {
@@ -285,19 +357,46 @@ export default function ReportPage() {
     setIsSubmitting(true);
     try {
       const ticketId = `#CF${Math.floor(1000 + Math.random() * 9000)}`;
+      const finalDescription = isHazard ? `[IMMEDIATE HAZARD] ${description}` : description;
       await createReport({
         ticket_id: ticketId,
         category,
-        description: description || `${category} reported at ${locationAddress}`,
+        description: finalDescription || `${category} reported at ${locationAddress}`,
         location_address: locationAddress,
         latitude: coords.lat + (Math.random() - 0.5) * 0.005,
         longitude: coords.lng + (Math.random() - 0.5) * 0.005,
         image_url: previewUrl || '/pothole.jpg',
         status: 'In Progress',
-        priority: category === 'Pothole' ? 'High' : 'Medium',
-        department: category === 'Streetlight' ? 'Electrical Grid' : category === 'Water Leak' ? 'Water Works' : 'Roads & Infrastructure',
-        ai_confidence: 98
+        priority: severity,
+        department: category.includes('Streetlight') || category.includes('Signal') ? 'Electrical Grid' : category.includes('Water') ? 'Water Works' : 'Roads & Infrastructure',
+        ai_confidence: 98,
+        user_id: user?.id
       });
+      
+      // Attempt to send email confirmation
+      try {
+        const serviceId = import.meta.env.VITE_EMAILJS_SERVICE_ID;
+        const templateId = import.meta.env.VITE_EMAILJS_TEMPLATE_ID;
+        const publicKey = import.meta.env.VITE_EMAILJS_PUBLIC_KEY;
+        
+        if (serviceId && templateId && publicKey && user?.email) {
+          const toName = profile?.full_name || user.user_metadata?.full_name || user.email.split('@')[0] || 'Citizen';
+          await emailjs.send(serviceId, templateId, {
+            to_email: user.email,
+            to_name: toName,
+            ticket_id: ticketId,
+            category: category,
+            location: locationAddress,
+          }, publicKey);
+          console.log('Confirmation email sent successfully');
+        } else {
+          console.log('EmailJS keys not configured. Skipping confirmation email.');
+        }
+      } catch (emailErr) {
+        console.error('Failed to send confirmation email:', emailErr);
+        // We don't want to block the user if email fails, so we catch it here
+      }
+
       showToast(`Report ${ticketId} saved to database!`);
       navigate(`/tracking?id=${encodeURIComponent(ticketId)}`);
     } catch (err) {
@@ -310,7 +409,7 @@ export default function ReportPage() {
 
   return (
     <div className="w-full h-[100dvh] flex flex-col bg-surface">
-      <Header />
+      <Header showBack />
       <main className="flex-1 flex flex-col relative w-full h-full pt-20 pb-20 md:pb-8 md:pl-24 overflow-y-auto">
         <div className="px-gutter-lg pt-4 pb-6 bg-surface z-10 border-b border-outline-variant/20 shadow-[0_4px_12px_rgba(0,0,0,0.02)] sticky top-0">
           <div className="flex items-center justify-between">
@@ -387,6 +486,18 @@ export default function ReportPage() {
                     </div>
                   </div>
                 )}
+                {/* GPS Locate Button */}
+                <button
+                  type="button"
+                  onClick={handleLocateMe}
+                  disabled={isLocating}
+                  className="absolute bottom-3 right-3 z-10 w-12 h-12 bg-surface-container-lowest rounded-full shadow-[0_4px_12px_rgba(0,0,0,0.15)] border border-outline-variant/20 flex items-center justify-center text-primary hover:bg-surface-container-low transition-colors active:scale-95 disabled:opacity-50"
+                  aria-label="Use my current location"
+                >
+                  <span className={`material-symbols-outlined text-[24px] ${isLocating ? 'animate-spin' : ''}`}>
+                    {isLocating ? 'refresh' : 'my_location'}
+                  </span>
+                </button>
               </div>
             </div>
           )}
@@ -451,16 +562,26 @@ export default function ReportPage() {
             <div className="space-y-space-md animate-fade-in">
               <div className="bg-surface-container-lowest p-space-md rounded-2xl shadow-sm border border-outline-variant/20">
                 <label className="font-title-sm text-title-sm font-bold text-on-surface mb-2 block">Category</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {['Pothole', 'Streetlight', 'Water Leak', 'Other'].map((cat) => (
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                  {[
+                    'Pothole / Road Damage', 
+                    'Streetlight Outage', 
+                    'Water Leak / Flooding', 
+                    'Illegal Dumping / Trash', 
+                    'Graffiti / Vandalism', 
+                    'Broken Sidewalk', 
+                    'Traffic Signal Issue',
+                    'Fallen Tree / Branches',
+                    'Other'
+                  ].map((cat) => (
                     <button
                       key={cat}
                       type="button"
                       onClick={() => setCategory(cat)}
-                      className={`px-3 py-2 rounded-lg font-label-md transition-all ${
+                      className={`px-3 py-2 rounded-lg font-label-md transition-all text-left truncate ${
                         category === cat 
                           ? 'bg-primary text-on-primary font-bold shadow-sm' 
-                          : 'bg-surface-container text-on-surface border border-outline-variant/20'
+                          : 'bg-surface-container text-on-surface hover:bg-surface-container-high border border-outline-variant/20'
                       }`}
                     >
                       {cat}
@@ -468,14 +589,50 @@ export default function ReportPage() {
                   ))}
                 </div>
               </div>
+
               <div className="bg-surface-container-lowest p-space-md rounded-2xl shadow-sm border border-outline-variant/20">
-                <label className="font-title-sm text-title-sm font-bold text-on-surface mb-2 block">Description</label>
+                <label className="font-title-sm text-title-sm font-bold text-on-surface mb-2 block">Severity Level</label>
+                <div className="flex gap-2">
+                  {['Low', 'Medium', 'High', 'Critical'].map((sev) => (
+                    <button
+                      key={sev}
+                      type="button"
+                      onClick={() => setSeverity(sev)}
+                      className={`flex-1 py-2 rounded-lg font-label-md transition-all ${
+                        severity === sev 
+                          ? (sev === 'Critical' || sev === 'High' ? 'bg-error text-on-error font-bold shadow-sm' : 'bg-primary text-on-primary font-bold shadow-sm')
+                          : 'bg-surface-container text-on-surface border border-outline-variant/20'
+                      }`}
+                    >
+                      {sev}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="bg-surface-container-lowest p-space-md rounded-2xl shadow-sm border border-outline-variant/20 flex items-center justify-between cursor-pointer" onClick={() => setIsHazard(!isHazard)}>
+                <div>
+                  <h4 className="font-title-sm text-title-sm font-bold text-on-surface">Immediate Safety Hazard?</h4>
+                  <p className="font-body-sm text-[12px] text-on-surface-variant">Check this if the issue poses an immediate danger to the public.</p>
+                </div>
+                <div className={`w-12 h-6 rounded-full transition-colors flex items-center px-1 ${isHazard ? 'bg-error' : 'bg-surface-container-highest'}`}>
+                  <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${isHazard ? 'translate-x-6' : 'translate-x-0'}`}></div>
+                </div>
+              </div>
+
+              <div className="bg-surface-container-lowest p-space-md rounded-2xl shadow-sm border border-outline-variant/20">
+                <label className="font-title-sm text-title-sm font-bold text-on-surface mb-2 block">Detailed Description (Required)</label>
                 <textarea 
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   className="w-full h-32 bg-surface-container-highest rounded-xl p-3 outline-none border border-transparent focus:border-primary text-on-surface font-body-md" 
-                  placeholder="Add more details about the issue..."
+                  placeholder="Please provide specific details about the issue (e.g., exact size, when you first noticed it, any immediate hazards)..."
                 />
+                <div className="flex justify-between items-center mt-2">
+                  <span className={`font-label-sm text-[12px] ${description.length < 20 ? 'text-error' : 'text-primary'}`}>
+                    {description.length}/20 min chars
+                  </span>
+                </div>
               </div>
             </div>
           )}
@@ -493,8 +650,9 @@ export default function ReportPage() {
                <div className="bg-surface-container-lowest p-space-md rounded-2xl shadow-sm border border-outline-variant/20">
                   <h4 className="font-title-sm font-bold text-on-surface mb-2">Summary</h4>
                   <ul className="space-y-2 text-body-sm text-on-surface-variant">
-                    <li className="flex justify-between"><span>Category:</span> <span className="font-bold text-on-surface">{category} (98% AI Match)</span></li>
-                    <li className="flex justify-between"><span>Priority:</span> <span className={`font-bold ${category === 'Pothole' ? 'text-error' : 'text-primary'}`}>{category === 'Pothole' ? 'High' : 'Medium'}</span></li>
+                    <li className="flex justify-between"><span>Category:</span> <span className="font-bold text-on-surface">{category}</span></li>
+                    <li className="flex justify-between"><span>Severity:</span> <span className={`font-bold ${severity === 'Critical' || severity === 'High' ? 'text-error' : 'text-primary'}`}>{severity}</span></li>
+                    <li className="flex justify-between"><span>Immediate Hazard:</span> <span className={`font-bold ${isHazard ? 'text-error' : 'text-on-surface'}`}>{isHazard ? 'Yes' : 'No'}</span></li>
                     <li className="flex justify-between"><span>Location:</span> <span className="font-bold text-on-surface">{locationAddress}</span></li>
                     {previewUrl && (
                       <li className="flex items-center justify-between pt-2 border-t border-outline-variant/20">
@@ -504,15 +662,28 @@ export default function ReportPage() {
                     )}
                   </ul>
                </div>
+
+               <div className="bg-surface-container-lowest p-space-md rounded-2xl shadow-sm border border-outline-variant/20 flex items-start gap-3 mt-4 cursor-pointer" onClick={() => setIsConfirmed(!isConfirmed)}>
+                  <div className={`w-6 h-6 rounded flex items-center justify-center shrink-0 border-2 transition-colors ${isConfirmed ? 'bg-primary border-primary text-on-primary' : 'border-outline text-transparent'}`}>
+                    <span className="material-symbols-outlined text-[16px] font-bold">check</span>
+                  </div>
+                  <p className="font-body-sm text-body-sm text-on-surface-variant flex-1 select-none">
+                    I certify that this report is accurate and not spam. I understand that submitting false reports or spam may lead to account suspension.
+                  </p>
+               </div>
             </div>
           )}
         </div>
 
         <div className="fixed bottom-0 left-0 right-0 md:left-24 bg-surface-container-lowest/90 backdrop-blur-xl border-t border-outline-variant/20 p-4 pb-safe z-40">
           <div className="max-w-3xl mx-auto flex items-center justify-between gap-4">
-            {step > 1 && (
+            {step > 1 ? (
               <button onClick={prevStep} className="h-12 px-6 rounded-xl bg-surface-container-low text-on-surface-variant font-title-sm font-bold hover:bg-surface-container transition-colors border border-outline-variant/20 active:scale-95 shadow-sm">
                 Back
+              </button>
+            ) : (
+              <button onClick={() => navigate(-1)} className="h-12 px-6 rounded-xl bg-surface-container-low text-on-surface-variant font-title-sm font-bold hover:bg-surface-container transition-colors border border-outline-variant/20 active:scale-95 shadow-sm">
+                Cancel
               </button>
             )}
             
@@ -522,8 +693,8 @@ export default function ReportPage() {
                 <span className="material-symbols-outlined">arrow_forward</span>
               </button>
             ) : (
-              <button onClick={submitReport} disabled={isSubmitting} className="flex-1 h-14 rounded-xl bg-tertiary-container text-on-tertiary-container hover:bg-tertiary-container/80 font-title-md font-bold tracking-wide flex items-center justify-center gap-2 shadow-[0_8px_16px_rgba(0,80,31,0.25)] hover:-translate-y-0.5 active:scale-95 transition-all">
-                <span>{isSubmitting ? "Submitting to Supabase..." : "Submit Report"}</span>
+              <button onClick={submitReport} disabled={isSubmitting || !isConfirmed} className="flex-1 h-14 rounded-xl bg-tertiary-container disabled:opacity-50 disabled:cursor-not-allowed text-on-tertiary-container hover:bg-tertiary-container/80 font-title-md font-bold tracking-wide flex items-center justify-center gap-2 shadow-[0_8px_16px_rgba(0,80,31,0.25)] hover:-translate-y-0.5 active:scale-95 transition-all">
+                <span>{isSubmitting ? "Submitting..." : "Submit Report"}</span>
                 <span className="material-symbols-outlined">send</span>
               </button>
             )}

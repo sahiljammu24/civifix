@@ -1,5 +1,5 @@
 import { createRoot } from 'react-dom/client';
-import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import './style.css';
 
 // We will create these shortly
@@ -12,27 +12,32 @@ import ProfilePage from './pages/profile';
 import MapPage from './pages/map';
 import AuthorityPortal from './pages/authority';
 import AlertsPage from './pages/alerts';
+import OnboardingPage from './pages/onboarding';
 
 import { APIProvider } from '@vis.gl/react-google-maps';
+import { AuthProvider } from './contexts/AuthContext';
 
 function App() {
   return (
     <APIProvider apiKey={import.meta.env.VITE_GOOGLE_MAPS_API_KEY} libraries={['places', 'geocoding']}>
-      <HashRouter>
-        <Routes>
-          <Route path="/" element={<Navigate to="/home" replace />} />
-          <Route path="/home" element={<HomePage />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/report" element={<ReportPage />} />
-          <Route path="/tracking" element={<TrackingPage />} />
-          <Route path="/profile" element={<ProfilePage />} />
-          <Route path="/map" element={<MapPage />} />
-          <Route path="/admin" element={<AuthorityPortal />} />
-          <Route path="/notifications" element={<AlertsPage />} />
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
-        </Routes>
-      </HashRouter>
+      <BrowserRouter>
+        <AuthProvider>
+          <Routes>
+            <Route path="/" element={<Navigate to="/home" replace />} />
+            <Route path="/home" element={<HomePage />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/onboarding" element={<OnboardingPage />} />
+            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/report" element={<ReportPage />} />
+            <Route path="/tracking" element={<TrackingPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/map" element={<MapPage />} />
+            <Route path="/admin" element={<AuthorityPortal />} />
+            <Route path="/notifications" element={<AlertsPage />} />
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          </Routes>
+        </AuthProvider>
+      </BrowserRouter>
     </APIProvider>
   );
 }

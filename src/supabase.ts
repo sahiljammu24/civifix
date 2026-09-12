@@ -5,6 +5,17 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
+export interface Profile {
+  id: string;
+  full_name: string | null;
+  avatar_url: string | null;
+  phone: string | null;
+  address: string | null;
+  is_verified: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface CivicReport {
   id?: string;
   ticket_id: string;
@@ -21,15 +32,54 @@ export interface CivicReport {
   assigned_lead?: string;
   lead_mobile_number?: string;
   truck_id?: string;
+  user_id?: string;
   created_at?: string;
   updated_at?: string;
 }
 
-export async function fetchReports() {
+// User Profiles
+export async function fetchProfile(userId: string) {
   const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', userId)
+    .single();
+
+  if (error) {
+    if (error.code !== 'PGRST116') { // PGRST116 is "Row not found"
+      console.error('Error fetching profile:', error);
+    }
+    return null;
+  }
+  return data as Profile;
+}
+
+export async function updateProfile(userId: string, updates: Partial<Profile>) {
+  const { data, error } = await supabase
+    .from('profiles')
+    .upsert({ id: userId, ...updates })
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error updating profile:', error);
+    throw error;
+  }
+  return data as Profile;
+}
+
+// Reports
+export async function fetchReports(userId?: string) {
+  let query = supabase
     .from('reports')
     .select('*')
     .order('created_at', { ascending: false });
+
+  if (userId) {
+    query = query.eq('user_id', userId);
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     console.error('Error fetching reports:', error);
@@ -81,6 +131,7 @@ export async function updateReport(id: string, updates: Partial<CivicReport>) {
   return data as CivicReport;
 }
 
+// Storage
 export async function uploadImage(file: File): Promise<string> {
   const fileExt = file.name.split('.').pop();
   const fileName = `${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
@@ -98,6 +149,23 @@ export async function uploadImage(file: File): Promise<string> {
   return data.publicUrl;
 }
 
+export async function uploadAvatar(file: File, userId: string): Promise<string> {
+  const fileExt = file.name.split('.').pop();
+  const filePath = `${userId}/${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from('avatars')
+    .upload(filePath, file);
+
+  if (uploadError) {
+    throw uploadError;
+  }
+
+  const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
+  return data.publicUrl;
+}
+
+// Field Units
 export interface FieldUnit {
   id: string;
   name: string;

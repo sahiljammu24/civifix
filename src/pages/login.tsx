@@ -1,14 +1,46 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { showToast } from '../components';
+import { supabase } from '../supabase';
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [isSignUp, setIsSignUp] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
-    showToast('Login successful. Welcome back!');
-    navigate('/dashboard');
+    setLoading(true);
+    setError('');
+
+    try {
+      if (isSignUp) {
+        const { error: signUpError } = await supabase.auth.signUp({
+          email,
+          password,
+        });
+        if (signUpError) throw signUpError;
+        showToast('Sign up successful! Please check your email or proceed.');
+        // Navigate will be handled by the AuthContext effect if auto-login occurs
+        navigate('/onboarding');
+      } else {
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        if (signInError) throw signInError;
+        showToast('Login successful. Welcome back!');
+        navigate('/dashboard');
+      }
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || 'Authentication failed');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -48,43 +80,72 @@ export default function LoginPage() {
                 <span className="material-symbols-outlined text-on-primary text-[32px]">shield_person</span>
               </div>
             </div>
-            <h1 className="font-headline-md text-headline-md text-center text-on-surface tracking-tight">Welcome Back</h1>
-            <p className="font-body-md text-body-md text-center text-on-surface-variant mt-2 mb-space-xl">Sign in to manage your reports and civic engagements.</p>
+            <h1 className="font-headline-md text-headline-md text-center text-on-surface tracking-tight">
+              {isSignUp ? 'Create an Account' : 'Welcome Back'}
+            </h1>
+            <p className="font-body-md text-body-md text-center text-on-surface-variant mt-2 mb-space-xl">
+              {isSignUp ? 'Sign up to start improving your city.' : 'Sign in to manage your reports and civic engagements.'}
+            </p>
             
-            <form onSubmit={handleLogin} className="space-y-space-md">
+            {error && (
+              <div className="mb-4 p-3 bg-error-container text-on-error-container rounded-lg font-body-sm">
+                {error}
+              </div>
+            )}
+            
+            <form onSubmit={handleAuth} className="space-y-space-md">
               <div>
                 <label htmlFor="email" className="block font-label-md text-label-md text-on-surface mb-1">Email Address</label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <span className="material-symbols-outlined text-outline text-[18px]">mail</span>
                   </div>
-                  <input type="email" id="email" className="w-full pl-10 pr-3 py-2 bg-surface-container hover:bg-surface-variant focus:bg-surface-container-lowest border border-transparent focus:border-primary rounded-lg font-body-md text-body-md text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-fixed transition-colors" placeholder="citizen@example.com" required />
+                  <input 
+                    type="email" 
+                    id="email" 
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full pl-10 pr-3 py-2 bg-surface-container hover:bg-surface-variant focus:bg-surface-container-lowest border border-transparent focus:border-primary rounded-lg font-body-md text-body-md text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-fixed transition-colors" 
+                    placeholder="citizen@example.com" 
+                    required 
+                  />
                 </div>
               </div>
               
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label htmlFor="password" className="block font-label-md text-label-md text-on-surface">Password</label>
-                  <a href="javascript:void(0)" className="font-label-sm text-label-sm text-primary hover:underline">Forgot password?</a>
+                  {!isSignUp && <a href="javascript:void(0)" className="font-label-sm text-label-sm text-primary hover:underline">Forgot password?</a>}
                 </div>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <span className="material-symbols-outlined text-outline text-[18px]">lock</span>
                   </div>
-                  <input type="password" id="password" className="w-full pl-10 pr-3 py-2 bg-surface-container hover:bg-surface-variant focus:bg-surface-container-lowest border border-transparent focus:border-primary rounded-lg font-body-md text-body-md text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-fixed transition-colors" placeholder="••••••••" required />
+                  <input 
+                    type="password" 
+                    id="password" 
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full pl-10 pr-3 py-2 bg-surface-container hover:bg-surface-variant focus:bg-surface-container-lowest border border-transparent focus:border-primary rounded-lg font-body-md text-body-md text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-fixed transition-colors" 
+                    placeholder="••••••••" 
+                    required 
+                    minLength={6}
+                  />
                 </div>
               </div>
 
-              <button type="submit" className="w-full py-2.5 px-4 bg-primary hover:bg-on-primary-fixed-variant text-on-primary font-title-md text-title-md rounded-lg shadow-md transition-colors mt-space-lg flex justify-center items-center gap-2">
-                <span>Sign In</span>
-                <span className="material-symbols-outlined text-[18px]">login</span>
+              <button type="submit" disabled={loading} className="w-full py-2.5 px-4 bg-primary hover:bg-on-primary-fixed-variant disabled:opacity-50 text-on-primary font-title-md text-title-md rounded-lg shadow-md transition-colors mt-space-lg flex justify-center items-center gap-2">
+                <span>{isSignUp ? (loading ? 'Signing up...' : 'Sign Up') : (loading ? 'Signing in...' : 'Sign In')}</span>
+                <span className="material-symbols-outlined text-[18px]">{isSignUp ? 'person_add' : 'login'}</span>
               </button>
             </form>
             
             <div className="mt-space-lg pt-space-lg border-t border-outline-variant/30 text-center">
               <p className="font-body-sm text-body-sm text-on-surface-variant">
-                Don't have an account? 
-                <a href="javascript:void(0)" className="text-primary font-title-sm hover:underline ml-1">Create one</a>
+                {isSignUp ? 'Already have an account?' : "Don't have an account?"} 
+                <button type="button" onClick={() => setIsSignUp(!isSignUp)} className="text-primary font-title-sm hover:underline ml-1 focus:outline-none">
+                  {isSignUp ? 'Sign in' : 'Create one'}
+                </button>
               </p>
             </div>
           </div>

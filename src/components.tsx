@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { useAuth } from './contexts/AuthContext';
+import { fetchReports } from './supabase';
+import { generateAlerts, Alert } from './pages/alerts';
 
 export interface HeaderProps {
   title?: string;
@@ -9,9 +12,23 @@ export interface HeaderProps {
 
 export function Header({ title = '', showBack = false, showBrand = true }: HeaderProps) {
   const navigate = useNavigate();
+  const { profile, user } = useAuth();
   const [showNotifications, setShowNotifications] = useState(false);
+  const [localAvatar, setLocalAvatar] = useState<string | null>(null);
+  const [headerAlerts, setHeaderAlerts] = useState<Alert[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
   const popupRef = useRef<HTMLDivElement>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (user) {
+      fetchReports(user.id).then(reports => {
+        const generated = generateAlerts(reports || []);
+        setHeaderAlerts(generated.slice(0, 3));
+        setUnreadCount(generated.filter(a => !a.isRead).length);
+      });
+    }
+  }, [user, showNotifications]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -25,6 +42,25 @@ export function Header({ title = '', showBack = false, showBrand = true }: Heade
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    const loadAvatar = () => {
+      if (user) {
+        const savedAvatar = localStorage.getItem(`avatar_${user.id}`);
+        if (savedAvatar) {
+          setLocalAvatar(savedAvatar);
+        }
+      }
+    };
+    
+    loadAvatar();
+    window.addEventListener('avatarChanged', loadAvatar);
+    return () => window.removeEventListener('avatarChanged', loadAvatar);
+  }, [user]);
+
+  const emailName = user?.email?.split('@')[0] || 'Citizen';
+  const initial = profile?.full_name?.charAt(0).toUpperCase() || emailName.charAt(0).toUpperCase();
+  const displayAvatar = localAvatar || profile?.avatar_url;
 
   return (
     <header className="fixed top-0 w-full md:w-[calc(100%-6rem)] md:ml-24 z-50 bg-surface/80 backdrop-blur-2xl shadow-[0_1px_4px_rgba(0,0,0,0.02)] border-b border-outline-variant/20 pt-safe transition-all">
@@ -50,32 +86,36 @@ export function Header({ title = '', showBack = false, showBrand = true }: Heade
         <div className="flex items-center gap-space-sm relative">
           <button ref={btnRef} onClick={() => setShowNotifications(!showNotifications)} className="relative w-11 h-11 flex items-center justify-center rounded-full bg-surface-container-lowest shadow-sm text-on-surface-variant hover:text-primary hover:bg-surface-bright transition-colors" type="button">
             <span className="material-symbols-outlined">notifications</span>
-            <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-error rounded-full border-2 border-surface-container-lowest"></span>
+            {unreadCount > 0 && (
+              <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-error rounded-full border-2 border-surface-container-lowest"></span>
+            )}
           </button>
           
           {showNotifications && (
             <div ref={popupRef} className="absolute top-14 right-0 w-80 md:w-96 bg-surface-container-lowest/95 backdrop-blur-3xl rounded-2xl shadow-2xl border border-outline-variant/20 overflow-hidden z-[100] transform origin-top-right transition-all">
               <div className="flex items-center justify-between p-4 border-b border-outline-variant/10 bg-surface/50">
                 <h3 className="font-title-md text-title-md text-on-surface font-bold">Notifications</h3>
-                <button className="text-primary font-label-sm text-label-sm hover:underline" type="button" onClick={() => setShowNotifications(false)}>Mark all as read</button>
+                <Link to="/notifications" className="text-primary font-label-sm text-label-sm hover:underline" onClick={() => setShowNotifications(false)}>View all</Link>
               </div>
               <div className="max-h-[60vh] overflow-y-auto no-scrollbar flex flex-col">
-                <Link to="/tracking" className="p-4 border-b border-outline-variant/5 flex gap-3 hover:bg-surface-container-low transition-colors group" onClick={() => setShowNotifications(false)}>
-                  <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform"><span className="material-symbols-outlined text-[20px]">local_shipping</span></div>
-                  <div className="flex flex-col min-w-0">
-                    <span className="font-title-sm text-title-sm text-on-surface font-bold truncate">Crew Dispatched!</span>
-                    <span className="font-body-sm text-[12px] text-on-surface-variant line-clamp-2 mt-0.5">Crew dispatched to #CF1024 (Pothole at Main Rd). ETA: 30 mins.</span>
-                    <span className="font-label-sm text-[10px] text-primary mt-1 font-bold">2 mins ago</span>
+                {headerAlerts.length === 0 ? (
+                  <div className="p-6 text-center text-on-surface-variant font-body-sm">
+                    No new notifications.
                   </div>
-                </Link>
-                <Link to="/tracking" className="p-4 border-b border-outline-variant/5 flex gap-3 hover:bg-surface-container-low transition-colors group opacity-75" onClick={() => setShowNotifications(false)}>
-                  <div className="w-10 h-10 rounded-full bg-tertiary/10 text-tertiary flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform"><span className="material-symbols-outlined text-[20px]">verified</span></div>
-                  <div className="flex flex-col min-w-0">
-                    <span className="font-title-sm text-title-sm text-on-surface font-bold truncate">Issue Resolved</span>
-                    <span className="font-body-sm text-[12px] text-on-surface-variant line-clamp-2 mt-0.5">Streetlight repair at Park Ave (#CF1019) is complete.</span>
-                    <span className="font-label-sm text-[10px] text-on-surface-variant mt-1">Yesterday, 5:30 PM</span>
-                  </div>
-                </Link>
+                ) : (
+                  headerAlerts.map(alert => (
+                    <Link key={alert.id} to={`/tracking?id=${encodeURIComponent(alert.ticketId)}`} className="p-4 border-b border-outline-variant/5 flex gap-3 hover:bg-surface-container-low transition-colors group" onClick={() => setShowNotifications(false)}>
+                      <div className={`w-10 h-10 rounded-full ${alert.iconBg} ${alert.iconColor} flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform`}>
+                        <span className="material-symbols-outlined text-[20px]">{alert.icon}</span>
+                      </div>
+                      <div className="flex flex-col min-w-0">
+                        <span className={`font-title-sm text-title-sm text-on-surface truncate ${!alert.isRead ? 'font-bold' : ''}`}>{alert.title}</span>
+                        <span className="font-body-sm text-[12px] text-on-surface-variant line-clamp-2 mt-0.5">{alert.body}</span>
+                        <span className={`font-label-sm text-[10px] mt-1 ${!alert.isRead ? 'text-primary font-bold' : 'text-on-surface-variant'}`}>{alert.time}</span>
+                      </div>
+                    </Link>
+                  ))
+                )}
               </div>
               <Link to="/notifications" className="p-3 bg-surface-container text-center block" onClick={() => setShowNotifications(false)}>
                 <span className="font-label-sm text-label-sm text-on-surface-variant hover:text-primary transition-colors uppercase tracking-wider font-bold cursor-pointer">View all alerts</span>
@@ -83,8 +123,14 @@ export function Header({ title = '', showBack = false, showBrand = true }: Heade
             </div>
           )}
 
-          <Link className="w-11 h-11 rounded-full p-0.5 bg-gradient-to-tr from-primary to-tertiary shadow-sm hover:scale-105 transition-transform" to="/profile">
-            <img alt="Profile" className="w-full h-full rounded-full object-cover border-2 border-surface-container-lowest" src="/avatar.jpg" />
+          <Link className="w-11 h-11 rounded-full p-0.5 bg-gradient-to-tr from-primary to-tertiary shadow-sm hover:scale-105 transition-transform flex items-center justify-center overflow-hidden border-2 border-surface-container-lowest" to="/profile">
+            {displayAvatar ? (
+              <img alt="Profile" className="w-full h-full rounded-full object-cover" src={displayAvatar} />
+            ) : (
+              <div className="w-full h-full rounded-full bg-primary-container text-on-primary-container flex items-center justify-center font-bold text-lg">
+                {initial}
+              </div>
+            )}
           </Link>
         </div>
       </div>
@@ -103,33 +149,33 @@ export function BottomNav({ active }: BottomNavProps = {}) {
   const items = [
     { path: 'dashboard', icon: 'grid_view', label: 'Home', isFab: false },
     { path: 'map', icon: 'location_on', label: 'Nearby', isFab: false },
-    { path: 'report', icon: 'add', label: '', isFab: true },
+    { path: 'report', icon: 'add_a_photo', label: 'Report', isFab: true },
     { path: 'tracking', icon: 'assignment', label: 'Tracking', isFab: false },
     { path: 'notifications', icon: 'notifications', label: 'Alerts', isFab: false },
   ];
 
   return (
-    <nav className="fixed bottom-4 left-4 right-4 md:bottom-auto md:top-0 md:left-0 md:h-screen md:w-24 md:border-r md:border-outline-variant/20 z-50 md:bg-surface-container-lowest bg-surface-container-lowest/80 backdrop-blur-2xl rounded-2xl shadow-xl md:shadow-none md:rounded-none">
-      <div className="relative flex items-center md:flex-col justify-around md:justify-start md:pt-8 md:gap-8 h-16 md:h-full px-2 md:px-0">
+    <nav className="fixed bottom-0 left-0 right-0 md:bottom-auto md:top-0 md:left-0 md:h-screen md:w-[96px] md:border-r md:border-outline-variant/20 z-50 md:bg-surface-container-lowest bg-surface-container-lowest/95 backdrop-blur-2xl shadow-[0_-4px_16px_rgba(0,0,0,0.06)] md:shadow-none pb-safe">
+      <div className="relative flex items-center md:flex-col justify-around md:justify-center md:gap-3 h-16 md:h-full px-2 md:px-0">
+        
         {items.map(item => {
           if (item.isFab) {
             return (
-              <div key={item.path} className="relative flex items-center justify-center -top-6 md:top-0 md:mb-6 z-10">
-                <Link className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-primary-container text-on-primary flex items-center justify-center shadow-lg active:scale-95 transition-transform hover:shadow-primary-container/50 md:hover:scale-105" to={`/${item.path}`}>
-                  <span className="material-symbols-outlined text-[32px] font-bold">{item.icon}</span>
+              <div key={item.path} className="relative flex items-center justify-center -top-5 md:top-0 md:mb-6 z-10 px-2 shrink-0">
+                <Link title={item.label} className="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-primary text-on-primary flex flex-col items-center justify-center shadow-md shadow-primary/30 active:scale-95 transition-all hover:shadow-lg hover:shadow-primary/40 hover:-translate-y-1 border border-white/10" to={`/${item.path}`}>
+                  <span className="material-symbols-outlined text-[28px]">{item.icon}</span>
                 </Link>
               </div>
             );
           }
           
-          const active = activePath === item.path;
+          const isActive = activePath === item.path;
           return (
-            <Link key={item.path} aria-current={active ? "page" : undefined} className={`flex flex-col items-center justify-center min-w-[56px] md:w-full h-14 md:h-20 transition-all ${active?'text-primary scale-110':'text-on-surface-variant hover:text-on-surface md:hover:bg-surface-container-low'}`} to={`/${item.path}`}>
-              <div className="relative flex flex-col items-center justify-center">
-                <span className={`material-symbols-outlined md:text-[28px] ${active ? 'font-bold' : ''}`} style={{ fontVariationSettings: `'FILL' ${active ? 1 : 0}` }}>{item.icon}</span>
-                <span className="font-label-sm text-label-sm mt-1 md:text-[11px] md:mt-1.5 opacity-100">{item.label}</span>
-                {active && <div className="absolute -bottom-1.5 md:-bottom-2 w-1.5 h-1.5 rounded-full bg-primary shadow-sm hidden md:block"></div>}
+            <Link key={item.path} title={item.label} aria-current={isActive ? "page" : undefined} className={`group flex flex-col items-center justify-center min-w-[60px] md:w-full py-1 md:py-2 transition-all`} to={`/${item.path}`}>
+              <div className={`relative flex items-center justify-center w-14 md:w-[64px] h-8 md:h-[36px] rounded-full transition-colors ${isActive ? 'bg-primary-container text-on-primary-container' : 'text-on-surface-variant group-hover:bg-surface-container-high group-hover:text-on-surface'}`}>
+                <span className="material-symbols-outlined text-[24px]" style={{ fontVariationSettings: `'FILL' ${isActive ? 1 : 0}` }}>{item.icon}</span>
               </div>
+              <span className={`font-label-sm mt-1 text-[11px] md:text-[12px] font-medium transition-colors ${isActive ? 'text-on-surface font-semibold' : 'text-on-surface-variant group-hover:text-on-surface'}`}>{item.label}</span>
             </Link>
           );
         })}

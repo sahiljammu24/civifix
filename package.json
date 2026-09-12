@@ -17,10 +17,12 @@
     "vite": "^8.3.0"
   },
   "dependencies": {
+    "@emailjs/browser": "^4.4.1",
     "@supabase/supabase-js": "^2.116.0",
     "@vis.gl/react-google-maps": "^1.10.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
+    "react-easy-crop": "^6.2.3",
     "react-router-dom": "^7.18.3",
     "recharts": "^3.10.1"
   }

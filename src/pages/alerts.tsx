@@ -5,7 +5,7 @@ import { fetchReports, CivicReport } from '../supabase';
 
 type AlertType = 'all' | 'status' | 'dispatch' | 'resolved' | 'critical';
 
-interface Alert {
+export interface Alert {
   id: string;
   icon: string;
   iconBg: string;
@@ -19,7 +19,7 @@ interface Alert {
   isRead: boolean;
 }
 
-function timeAgo(dateStr: string): string {
+export function timeAgo(dateStr: string): string {
   const now = Date.now();
   const then = new Date(dateStr).getTime();
   const diff = now - then;
@@ -33,7 +33,7 @@ function timeAgo(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-function generateAlerts(reports: CivicReport[]): Alert[] {
+export function generateAlerts(reports: CivicReport[]): Alert[] {
   const alerts: Alert[] = [];
 
   for (const report of reports) {
@@ -46,27 +46,27 @@ function generateAlerts(reports: CivicReport[]): Alert[] {
       icon: 'add_circle',
       iconBg: 'bg-primary/10',
       iconColor: 'text-primary',
-      title: `New Report Submitted`,
+      title: `Issue Raised`,
       body: `${report.category} issue reported at ${report.location_address || 'unknown location'} (${report.ticket_id})`,
       time: timeAgo(created),
       timestamp: ts,
       type: 'status',
       ticketId: report.ticket_id,
-      isRead: true,
+      isRead: false,
     });
 
     // Status-based alerts
     if (report.status === 'In Progress') {
       alerts.push({
         id: `${report.ticket_id}-dispatch`,
-        icon: 'local_shipping',
+        icon: 'assignment_turned_in',
         iconBg: 'bg-secondary/10',
         iconColor: 'text-secondary',
-        title: 'Crew Dispatched',
-        body: `A maintenance crew has been dispatched to ${report.ticket_id} (${report.category} at ${report.location_address || 'location'}).`,
-        time: timeAgo(new Date(ts + 1800000).toISOString()), // ~30 min after creation
-        timestamp: ts + 1800000,
-        type: 'dispatch',
+        title: 'Assigned to Department',
+        body: `Report ${report.ticket_id} (${report.category}) has been received and routed to ${report.department || 'the relevant department'}.`,
+        time: timeAgo(new Date(ts + 1000).toISOString()),
+        timestamp: ts + 1000,
+        type: 'status',
         ticketId: report.ticket_id,
         isRead: false,
       });
