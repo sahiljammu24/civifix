@@ -22,6 +22,10 @@ function App() {
         <Routes>
           <Route path="/" element={<Navigate to="/home" replace />} />
           <Route path="/home" element={<HomePage />} />
+          <Route path="/how-it-works" element={<HomePage />} />
+          <Route path="/about" element={<HomePage />} />
+          <Route path="/report-an-issue" element={<Navigate to="/report" replace />} />
+          <Route path="/platform" element={<Navigate to="/dashboard" replace />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/report" element={<ReportPage />} />
