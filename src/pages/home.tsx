@@ -1,39 +1,235 @@
-import React, { useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { Header, BottomNav, showToast } from '../components';
+import { useState, useEffect } from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import { showToast } from '../components';
 
 export default function HomePage() {
-  const navigate = useNavigate();
+  const location = useLocation();
+  const [activeSection, setActiveSection] = useState<'home' | 'how-it-works' | 'about'>('home');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const scrollToSection = (id: string) => {
+    if (id === 'home') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    const element = document.getElementById(id);
+    if (element) {
+      const navHeight = 80;
+      const elementPosition = element.getBoundingClientRect().top;
+      const offsetPosition = elementPosition + window.pageYOffset - navHeight;
+      window.scrollTo({
+        top: offsetPosition,
+        behavior: 'smooth'
+      });
+    }
+  };
+
+  const handleNavClick = (sectionId: 'home' | 'how-it-works' | 'about') => (e: React.MouseEvent) => {
+    e.preventDefault();
+    setMobileMenuOpen(false);
+    setActiveSection(sectionId);
+    scrollToSection(sectionId);
+  };
+
+  // Handle direct navigation to #/how-it-works or #/about
+  useEffect(() => {
+    if (location.pathname === '/how-it-works' || location.hash.includes('how-it-works')) {
+      setActiveSection('how-it-works');
+      setTimeout(() => scrollToSection('how-it-works'), 150);
+    } else if (location.pathname === '/about' || location.hash.includes('about')) {
+      setActiveSection('about');
+      setTimeout(() => scrollToSection('about'), 150);
+    } else if (location.pathname === '/home') {
+      if (window.scrollY < 100) {
+        setActiveSection('home');
+      }
+    }
+  }, [location.pathname, location.hash]);
+
+  // Scroll spy to highlight active section in navbar
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollY = window.scrollY;
+      const howItWorksEl = document.getElementById('how-it-works');
+      const aboutEl = document.getElementById('about');
+
+      if (howItWorksEl && scrollY >= howItWorksEl.offsetTop - 180) {
+        setActiveSection('how-it-works');
+      } else if (aboutEl && scrollY >= aboutEl.offsetTop - 180) {
+        setActiveSection('about');
+      } else {
+        setActiveSection('home');
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
   return (
     <>
 
-<header className="fixed top-0 w-full z-50 bg-surface/90 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]">
+<header className="fixed top-0 w-full z-50 bg-surface/90 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)] border-b border-outline-variant/10">
   <div className="h-20 w-full px-gutter-lg flex items-center justify-between">
     <div className="flex items-center gap-space-md">
-      <Link to="/home" className="flex items-center gap-space-sm group"  >
-        <div className="w-10 h-10 rounded-lg bg-primary-container flex items-center justify-center shadow-[0_1px_3px_0_rgba(15,23,42,0.05)]">
+      <Link to="/home" onClick={() => scrollToSection('home')} className="flex items-center gap-space-sm group">
+        <div className="w-10 h-10 rounded-lg bg-primary-container flex items-center justify-center shadow-[0_1px_3px_0_rgba(15,23,42,0.05)] group-hover:bg-primary transition-colors">
           <span className="material-symbols-outlined text-on-primary text-[24px]">location_city</span>
         </div>
-        <span className="font-headline-md text-headline-md tracking-tight text-on-surface">CivicFix</span>
+        <span className="font-headline-md text-headline-md tracking-tight text-on-surface group-hover:text-primary transition-colors">CivicFix</span>
       </Link>
       <span className="hidden sm:inline-flex items-center px-space-sm py-space-xs rounded-full bg-secondary-container text-on-secondary-fixed-variant font-label-sm text-label-sm uppercase tracking-wide">Smart City Portal</span>
     </div>
-    <nav className="hidden md:flex items-center gap-space-lg" data-active-classes="text-primary font-title-sm font-semibold">
-      <Link to="/home" aria-current="page" className="transition-colors text-primary font-title-sm font-semibold"  >Home</Link>
-      <Link to="/how-it-works" className="font-title-sm text-title-sm text-on-surface-variant hover:text-on-surface transition-colors"  >How It Works</Link>
-      <Link to="/about" className="font-title-sm text-title-sm text-on-surface-variant hover:text-on-surface transition-colors"  >About</Link>
-      <Link to="/login" className="font-title-sm text-title-sm text-on-surface-variant hover:text-on-surface transition-colors"  >Login</Link>
-    </nav>
-    <div className="flex items-center gap-space-md">
-      <Link to="/report-an-issue" className="inline-flex items-center justify-center gap-space-xs px-space-md py-space-sm rounded-lg bg-primary-container hover:bg-primary text-on-primary font-title-sm text-title-sm shadow-[0_1px_3px_0_rgba(15,23,42,0.05)] transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"  >
-        <span className="material-symbols-outlined text-[20px]">photo_camera</span>
-        <span>Report an Issue</span>
+
+    <nav className="hidden md:flex items-center gap-space-lg">
+      <button
+        type="button"
+        onClick={handleNavClick('home')}
+        className={`font-title-sm text-title-sm transition-colors py-1 cursor-pointer relative ${
+          activeSection === 'home'
+            ? 'text-primary font-semibold'
+            : 'text-on-surface-variant hover:text-on-surface'
+        }`}
+      >
+        <span>Home</span>
+        {activeSection === 'home' && (
+          <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-primary rounded-full"></span>
+        )}
+      </button>
+      <button
+        type="button"
+        onClick={handleNavClick('about')}
+        className={`font-title-sm text-title-sm transition-colors py-1 cursor-pointer relative ${
+          activeSection === 'about'
+            ? 'text-primary font-semibold'
+            : 'text-on-surface-variant hover:text-on-surface'
+        }`}
+      >
+        <span>About</span>
+        {activeSection === 'about' && (
+          <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-primary rounded-full"></span>
+        )}
+      </button>
+      <button
+        type="button"
+        onClick={handleNavClick('how-it-works')}
+        className={`font-title-sm text-title-sm transition-colors py-1 cursor-pointer relative ${
+          activeSection === 'how-it-works'
+            ? 'text-primary font-semibold'
+            : 'text-on-surface-variant hover:text-on-surface'
+        }`}
+      >
+        <span>How It Works</span>
+        {activeSection === 'how-it-works' && (
+          <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-primary rounded-full"></span>
+        )}
+      </button>
+      <Link
+        to="/login"
+        className="font-title-sm text-title-sm text-on-surface-variant hover:text-on-surface transition-colors py-1"
+      >
+        Login
       </Link>
-      <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
-        <span className="material-symbols-outlined text-on-primary text-[18px]">person</span>
-      </div>
+    </nav>
+
+    <div className="flex items-center gap-space-sm sm:gap-space-md">
+      <Link
+        to="/report"
+        className="inline-flex items-center justify-center gap-space-xs px-space-md py-space-sm rounded-lg bg-primary-container hover:bg-primary text-on-primary font-title-sm text-title-sm shadow-[0_1px_3px_0_rgba(15,23,42,0.05)] transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary active:scale-95"
+      >
+        <span className="material-symbols-outlined text-[20px]">photo_camera</span>
+        <span className="hidden sm:inline">Report an Issue</span>
+        <span className="sm:hidden">Report</span>
+      </Link>
+
+      <Link
+        to="/profile"
+        title="View Profile"
+        className="w-9 h-9 rounded-full bg-surface-container-high hover:bg-primary text-primary hover:text-on-primary flex items-center justify-center transition-all shadow-sm hover:scale-105"
+      >
+        <span className="material-symbols-outlined text-[20px]">person</span>
+      </Link>
+
+      <button
+        type="button"
+        onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+        className="md:hidden w-9 h-9 flex items-center justify-center rounded-lg text-on-surface hover:bg-surface-container-high transition-colors"
+        aria-label="Toggle navigation menu"
+      >
+        <span className="material-symbols-outlined text-[24px]">
+          {mobileMenuOpen ? 'close' : 'menu'}
+        </span>
+      </button>
     </div>
   </div>
+
+  {/* Mobile Dropdown Navigation */}
+  {mobileMenuOpen && (
+    <div className="md:hidden w-full bg-surface/98 backdrop-blur-2xl border-b border-outline-variant/20 shadow-xl px-gutter-lg py-space-md flex flex-col gap-space-xs">
+      <button
+        type="button"
+        onClick={handleNavClick('home')}
+        className={`flex items-center gap-space-sm px-space-md py-space-sm rounded-xl font-title-sm text-title-sm transition-colors text-left ${
+          activeSection === 'home'
+            ? 'bg-primary/10 text-primary font-semibold'
+            : 'text-on-surface hover:bg-surface-container-low'
+        }`}
+      >
+        <span className="material-symbols-outlined text-[20px]">home</span>
+        <span>Home</span>
+      </button>
+      <button
+        type="button"
+        onClick={handleNavClick('about')}
+        className={`flex items-center gap-space-sm px-space-md py-space-sm rounded-xl font-title-sm text-title-sm transition-colors text-left ${
+          activeSection === 'about'
+            ? 'bg-primary/10 text-primary font-semibold'
+            : 'text-on-surface hover:bg-surface-container-low'
+        }`}
+      >
+        <span className="material-symbols-outlined text-[20px]">info</span>
+        <span>About CivicFix</span>
+      </button>
+      <button
+        type="button"
+        onClick={handleNavClick('how-it-works')}
+        className={`flex items-center gap-space-sm px-space-md py-space-sm rounded-xl font-title-sm text-title-sm transition-colors text-left ${
+          activeSection === 'how-it-works'
+            ? 'bg-primary/10 text-primary font-semibold'
+            : 'text-on-surface hover:bg-surface-container-low'
+        }`}
+      >
+        <span className="material-symbols-outlined text-[20px]">account_tree</span>
+        <span>How It Works</span>
+      </button>
+      <Link
+        to="/map"
+        onClick={() => setMobileMenuOpen(false)}
+        className="flex items-center gap-space-sm px-space-md py-space-sm rounded-xl font-title-sm text-title-sm text-on-surface hover:bg-surface-container-low transition-colors"
+      >
+        <span className="material-symbols-outlined text-[20px]">map</span>
+        <span>Ward Operations Map</span>
+      </Link>
+      <Link
+        to="/login"
+        onClick={() => setMobileMenuOpen(false)}
+        className="flex items-center gap-space-sm px-space-md py-space-sm rounded-xl font-title-sm text-title-sm text-on-surface hover:bg-surface-container-low transition-colors"
+      >
+        <span className="material-symbols-outlined text-[20px]">login</span>
+        <span>Login</span>
+      </Link>
+      <div className="pt-space-xs mt-space-xs border-t border-outline-variant/10">
+        <Link
+          to="/report"
+          onClick={() => setMobileMenuOpen(false)}
+          className="w-full inline-flex items-center justify-center gap-space-xs px-space-md py-space-sm rounded-xl bg-primary text-on-primary font-title-sm text-title-sm shadow-sm"
+        >
+          <span className="material-symbols-outlined text-[20px]">photo_camera</span>
+          <span>Report an Issue</span>
+        </Link>
+      </div>
+    </div>
+  )}
 </header>
 <main className="w-full pt-20 bg-surface">
   <div className="flex flex-col w-full">
@@ -48,10 +244,7 @@ export default function HomePage() {
             Dispatch Engine v4.2 Active across 14 Municipal Wards. Mean triage duration: 11 minutes.
           </p>
         </div>
-        <Link to="/platform" className="hidden sm:inline-flex items-center gap-space-xs text-primary font-title-sm text-title-sm hover:underline"  >
-          <span>Ward Operations Map</span>
-          <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
-        </Link>
+
       </div>
     </section>
     {/**/}
@@ -72,11 +265,11 @@ export default function HomePage() {
           </p>
           {/**/}
           <div className="mt-space-xl flex flex-wrap items-center gap-space-md w-full sm:w-auto">
-            <Link to="/report-an-issue" className="inline-flex items-center justify-center gap-space-sm px-space-lg py-space-sm rounded-lg bg-primary-container hover:bg-primary text-on-primary font-title-md text-title-md shadow-md transition-all transform hover:-translate-y-0.5 focus:outline-none"  >
+            <Link to="/report" className="inline-flex items-center justify-center gap-space-sm px-space-lg py-space-sm rounded-lg bg-primary-container hover:bg-primary text-on-primary font-title-md text-title-md shadow-md transition-all transform hover:-translate-y-0.5 focus:outline-none"  >
               <span className="material-symbols-outlined text-[22px]">add_a_photo</span>
               <span>Report an Issue</span>
             </Link>
-            <Link to="/platform" className="inline-flex items-center justify-center gap-space-sm px-space-lg py-space-sm rounded-lg bg-surface-container-lowest hover:bg-surface-container text-on-surface font-title-md text-title-md shadow-sm transition-colors"  >
+            <Link to="/explore" className="inline-flex items-center justify-center gap-space-sm px-space-lg py-space-sm rounded-lg bg-surface-container-lowest hover:bg-surface-container text-on-surface font-title-md text-title-md shadow-sm transition-colors"  >
               <span className="material-symbols-outlined text-primary text-[22px]">explore</span>
               <span>Explore Issues</span>
             </Link>
@@ -117,16 +310,7 @@ export default function HomePage() {
           {/**/}
           <div className="w-full bg-surface-container-lowest rounded-2xl shadow-xl overflow-hidden p-space-sm">
             {/**/}
-            <div className="bg-surface-container-low px-space-md py-space-sm rounded-xl flex items-center justify-between gap-space-sm">
-              <div className="flex items-center gap-space-xs flex-1 max-w-xs bg-surface-container-lowest px-space-sm py-1.5 rounded-lg shadow-sm">
-                <span className="material-symbols-outlined text-outline text-[18px]">search</span>
-                <input className="bg-transparent font-body-sm text-body-sm text-on-surface w-full focus:outline-none cursor-default" placeholder="Search by street or ward..." readOnly type="text" value="Main St Corridor • Ward 4"/>
-              </div>
-              <div className="flex items-center gap-space-xs bg-secondary-container px-space-sm py-1.5 rounded-lg">
-                <span className="inline-block w-2 h-2 rounded-full bg-tertiary animate-ping"></span>
-                <span className="font-label-sm text-label-sm text-on-secondary-fixed">Active Crews: 42 on duty</span>
-              </div>
-            </div>
+
             <div className="relative w-full h-[460px] mt-space-sm rounded-xl overflow-hidden bg-surface-container-high">
               <svg className="absolute inset-0 w-full h-full opacity-60" xmlns="http://www.w3.org/2000/svg">
                 <defs>
@@ -231,11 +415,7 @@ export default function HomePage() {
                 </div>
               </div>
               {/**/}
-              <div className="absolute bottom-4 left-4 bg-surface-container-lowest/95 backdrop-blur-sm p-1.5 rounded-lg shadow-md flex items-center gap-1">
-                <button className="px-2 py-1 bg-primary text-on-primary rounded font-label-sm text-label-sm">Grid</button>
-                <button className="px-2 py-1 bg-surface-container hover:bg-surface-variant text-on-surface rounded font-label-sm text-label-sm">Heatmap</button>
-                <button className="px-2 py-1 bg-surface-container hover:bg-surface-variant text-on-surface rounded font-label-sm text-label-sm">Crews</button>
-              </div>
+
             </div>
             {/**/}
             <div className="mt-space-sm px-space-sm py-1 flex items-center justify-between text-on-surface-variant font-label-sm text-label-sm">
@@ -330,10 +510,10 @@ export default function HomePage() {
       </div>
     </section>
     {/**/}
-    <section className="w-full px-gutter-lg py-space-2xl">
+    <section id="about" className="w-full px-gutter-lg py-space-2xl scroll-mt-24">
       <div className="max-w-7xl mx-auto">
         <div className="max-w-2xl mb-space-xl">
-          <span className="font-label-sm text-label-sm uppercase tracking-wider text-primary font-semibold">Core Architecture</span>
+          <span className="font-label-sm text-label-sm uppercase tracking-wider text-primary font-semibold">About CivicFix • Core Architecture</span>
           <h2 className="font-headline-lg text-headline-lg text-on-surface mt-1">Designed for speed, built for accountability</h2>
           <p className="font-body-lg text-body-lg text-on-surface-variant mt-space-xs">
             Transforming citizen input into immediate public works field dispatches through modern civic technology.
@@ -405,11 +585,11 @@ export default function HomePage() {
       </div>
     </section>
     {/**/}
-    <section className="w-full px-gutter-lg py-space-2xl bg-surface-container-low/50">
+    <section id="how-it-works" className="w-full px-gutter-lg py-space-2xl bg-surface-container-low/50 scroll-mt-24">
       <div className="max-w-7xl mx-auto">
         {/**/}
         <div className="text-center max-w-3xl mx-auto mb-space-2xl">
-          <span className="font-label-sm text-label-sm uppercase tracking-wider text-primary font-bold">End-to-End Workflow</span>
+          <span className="font-label-sm text-label-sm uppercase tracking-wider text-primary font-bold">How It Works • End-to-End Workflow</span>
           <h2 className="font-headline-lg text-headline-lg text-on-surface mt-space-xs">Simple, Transparent, and Accountable</h2>
           <p className="font-body-lg text-body-lg text-on-surface-variant mt-space-xs">
             From street report to municipal repair in 4 simple steps
@@ -526,7 +706,7 @@ export default function HomePage() {
               <p className="font-body-sm text-body-sm text-on-surface-variant">No account required for immediate urgent hazard alerts.</p>
             </div>
           </div>
-          <Link to="/report-an-issue" className="inline-flex items-center gap-space-xs px-space-md py-space-sm rounded-lg bg-primary text-on-primary font-title-sm text-title-sm hover:bg-on-primary-fixed-variant transition-colors shadow-sm whitespace-nowrap"  >
+          <Link to="/report" className="inline-flex items-center gap-space-xs px-space-md py-space-sm rounded-lg bg-primary text-on-primary font-title-sm text-title-sm hover:bg-on-primary-fixed-variant transition-colors shadow-sm whitespace-nowrap"  >
             <span className="material-symbols-outlined text-[18px]">photo_camera</span>
             <span>Start Citizen Report</span>
           </Link>
@@ -550,7 +730,7 @@ export default function HomePage() {
             </span>
           </div>
         </div>
-        <Link to="/platform" className="text-primary font-title-sm text-title-sm hover:underline flex items-center gap-1"  >
+        <Link to="/tracking" className="text-primary font-title-sm text-title-sm hover:underline flex items-center gap-1"  >
           <span>View full audit log</span>
           <span className="material-symbols-outlined text-[16px]">launch</span>
         </Link>
@@ -569,14 +749,14 @@ export default function HomePage() {
             Join over 48,000 engaged neighbors, district engineers, and local councilors making streets safer every day.
           </p>
           <div className="mt-space-xl flex flex-wrap items-center gap-space-md">
-            <Link to="/report-an-issue" className="inline-flex items-center justify-center gap-space-xs px-space-lg py-space-sm rounded-lg bg-surface text-primary font-title-md text-title-md hover:bg-surface-bright transition-all shadow-md"  >
+            <Link to="/report" className="inline-flex items-center justify-center gap-space-xs px-space-lg py-space-sm rounded-lg bg-surface text-primary font-title-md text-title-md hover:bg-surface-bright transition-all shadow-md"  >
               <span className="material-symbols-outlined text-[20px]">add_a_photo</span>
               <span>Submit a Civic Report</span>
             </Link>
-            <Link to="/how-it-works" className="inline-flex items-center justify-center gap-space-xs px-space-lg py-space-sm rounded-lg bg-on-primary-fixed-variant/30 text-on-primary font-title-md text-title-md hover:bg-on-primary-fixed-variant/50 transition-colors"  >
+            <button type="button" onClick={handleNavClick('how-it-works')} className="inline-flex items-center justify-center gap-space-xs px-space-lg py-space-sm rounded-lg bg-on-primary-fixed-variant/30 text-on-primary font-title-md text-title-md hover:bg-on-primary-fixed-variant/50 transition-colors cursor-pointer"  >
               <span>Learn How Wards Participate</span>
               <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
-            </Link>
+            </button>
           </div>
         </div>
       </div>
@@ -595,11 +775,11 @@ export default function HomePage() {
       <p className="font-body-md text-body-md text-on-surface-variant">Empowering citizens and municipal authorities with transparent, AI-driven public issue resolution.</p>
     </div>
     <div className="flex flex-wrap gap-space-lg">
-      <Link to="/platform" className="font-title-sm text-title-sm text-on-surface-variant hover:text-on-surface transition-colors"  >Platform</Link>
-      <Link to="/departments" className="font-title-sm text-title-sm text-on-surface-variant hover:text-on-surface transition-colors"  >Departments</Link>
-      <Link to="/privacy-policy" className="font-title-sm text-title-sm text-on-surface-variant hover:text-on-surface transition-colors"  >Privacy Policy</Link>
-      <Link to="/terms-of-service" className="font-title-sm text-title-sm text-on-surface-variant hover:text-on-surface transition-colors"  >Terms of Service</Link>
-      <Link to="/hackathon-demo-2026" className="font-title-sm text-title-sm text-on-surface-variant hover:text-on-surface transition-colors"  >Hackathon Demo 2026</Link>
+      <Link to="/dashboard" className="font-title-sm text-title-sm text-on-surface-variant hover:text-on-surface transition-colors"  >Platform Dashboard</Link>
+      <Link to="/admin" className="font-title-sm text-title-sm text-on-surface-variant hover:text-on-surface transition-colors"  >Departments Portal</Link>
+      <button type="button" onClick={() => showToast('CivicFix is committed to open data privacy and citizen security.')} className="font-title-sm text-title-sm text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer"  >Privacy Policy</button>
+      <button type="button" onClick={() => showToast('Terms of Service: Municipal open access portal under civic trust.')} className="font-title-sm text-title-sm text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer"  >Terms of Service</button>
+      <Link to="/dashboard" className="font-title-sm text-title-sm text-on-surface-variant hover:text-on-surface transition-colors"  >Hackathon Demo 2026</Link>
     </div>
   </div>
   <div className="w-full px-gutter-lg mt-space-xl pt-space-lg flex flex-col sm:flex-row items-center justify-between text-on-surface-variant font-label-md text-label-md gap-space-sm">

@@ -13,6 +13,7 @@ import MapPage from './pages/map';
 import AuthorityPortal from './pages/authority';
 import AlertsPage from './pages/alerts';
 import OnboardingPage from './pages/onboarding';
+import ExplorePage from './pages/explore';
 
 import { APIProvider } from '@vis.gl/react-google-maps';
 import { AuthProvider } from './contexts/AuthContext';
@@ -25,6 +26,10 @@ function App() {
           <Routes>
             <Route path="/" element={<Navigate to="/home" replace />} />
             <Route path="/home" element={<HomePage />} />
+            <Route path="/how-it-works" element={<HomePage />} />
+            <Route path="/about" element={<HomePage />} />
+            <Route path="/report-an-issue" element={<Navigate to="/report" replace />} />
+            <Route path="/platform" element={<Navigate to="/dashboard" replace />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/onboarding" element={<OnboardingPage />} />
             <Route path="/dashboard" element={<DashboardPage />} />
@@ -34,6 +39,7 @@ function App() {
             <Route path="/map" element={<MapPage />} />
             <Route path="/admin" element={<AuthorityPortal />} />
             <Route path="/notifications" element={<AlertsPage />} />
+            <Route path="/explore" element={<ExplorePage />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </AuthProvider>
