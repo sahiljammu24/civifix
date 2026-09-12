@@ -43,6 +43,18 @@ export default function LoginPage() {
     }
   };
 
+  const handleGoogleAuth = async () => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+      });
+      if (error) throw error;
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || 'Google Authentication failed');
+    }
+  };
+
   return (
     <>
       <header className="fixed top-0 w-full z-50 bg-surface/90 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]">
@@ -139,6 +151,21 @@ export default function LoginPage() {
                 <span className="material-symbols-outlined text-[18px]">{isSignUp ? 'person_add' : 'login'}</span>
               </button>
             </form>
+
+            <div className="mt-space-lg flex items-center justify-center gap-2">
+              <div className="h-px bg-outline-variant/30 flex-1"></div>
+              <span className="font-label-sm text-on-surface-variant">OR</span>
+              <div className="h-px bg-outline-variant/30 flex-1"></div>
+            </div>
+
+            <button 
+              type="button"
+              onClick={handleGoogleAuth}
+              className="mt-space-lg w-full py-2.5 px-4 bg-surface hover:bg-surface-container-low border border-outline-variant text-on-surface font-title-sm rounded-lg shadow-sm transition-colors flex justify-center items-center gap-3 active:scale-[0.98]"
+            >
+              <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-5 h-5" />
+              <span>Continue with Google</span>
+            </button>
             
             <div className="mt-space-lg pt-space-lg border-t border-outline-variant/30 text-center">
               <p className="font-body-sm text-body-sm text-on-surface-variant">

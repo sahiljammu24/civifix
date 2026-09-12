@@ -1,38 +1,29 @@
 import { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, Link } from 'react-router-dom';
 import { Header, BottomNav } from '../components';
-import { fetchReportByTicket, CivicReport } from '../supabase';
+import { fetchReportByTicket, fetchReports, CivicReport } from '../supabase';
+import { useAuth } from '../contexts/AuthContext';
 import { Map, Marker } from '@vis.gl/react-google-maps';
 
 export default function TrackingPage() {
+  const { user } = useAuth();
   const [searchParams] = useSearchParams();
-  const ticketParam = searchParams.get('id') || '#CF1024';
+  const ticketParam = searchParams.get('id');
   
   const [report, setReport] = useState<CivicReport | null>(null);
+  const [allReports, setAllReports] = useState<CivicReport[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function load() {
       setLoading(true);
       try {
-        const data = await fetchReportByTicket(ticketParam);
-        if (data) {
-          setReport(data);
-        } else {
-          // fallback default
-          setReport({
-            ticket_id: ticketParam,
-            category: 'Hazardous Pothole',
-            description: 'Severe road depression reported on Main St.',
-            location_address: 'LPU',
-            latitude: 31.25471,
-            longitude: 75.70434,
-            image_url: '/pothole.jpg',
-            status: 'In Progress',
-            priority: 'High',
-            department: 'Roads & Infrastructure',
-            ai_confidence: 99
-          });
+        if (ticketParam) {
+          const data = await fetchReportByTicket(ticketParam);
+          if (data) setReport(data);
+        } else if (user) {
+          const data = await fetchReports(user.id);
+          setAllReports(data || []);
         }
       } catch (err) {
         console.error('Error loading report:', err);
@@ -41,21 +32,7 @@ export default function TrackingPage() {
       }
     }
     load();
-  }, [ticketParam]);
-
-  const currentReport = report || {
-    ticket_id: ticketParam,
-    category: 'Pothole',
-    description: 'Road depression reported by citizen.',
-    location_address: 'Main St.',
-    latitude: 31.25471,
-    longitude: 75.70434,
-    image_url: '/pothole.jpg',
-    status: 'In Progress' as const,
-    priority: 'High' as const,
-    department: 'Roads & Infrastructure',
-    ai_confidence: 95
-  };
+  }, [ticketParam, user]);
 
   if (loading) {
     return (
@@ -70,6 +47,88 @@ export default function TrackingPage() {
     );
   }
 
+  if (!ticketParam) {
+    return (
+      <div className="w-full h-screen flex flex-col bg-surface">
+        <Header />
+        <main className="flex-1 overflow-y-auto pt-24 pb-24 md:pl-24 px-gutter-lg bg-surface">
+          <div className="max-w-3xl mx-auto">
+            <h1 className="font-headline-md text-on-surface font-bold mb-2">Track Your Issues</h1>
+            <p className="font-body-md text-on-surface-variant mb-6">Select a report to track its progress in real-time.</p>
+            
+            {allReports.length === 0 ? (
+              <div className="p-10 flex flex-col items-center justify-center text-center gap-3 bg-surface-container-lowest rounded-3xl border border-outline-variant/20 shadow-sm mt-8">
+                <div className="w-16 h-16 rounded-full bg-surface-container-low text-secondary flex items-center justify-center mb-1">
+                  <span className="material-symbols-outlined text-[32px]">assignment</span>
+                </div>
+                <h3 className="font-title-md font-bold text-on-surface">No reports filed yet</h3>
+                <p className="font-body-sm text-on-surface-variant max-w-[250px]">
+                  Help improve your neighborhood. Tap "Report New Issue" to get started.
+                </p>
+                <Link to="/report" className="mt-2 px-6 py-2.5 bg-primary text-on-primary rounded-full font-label-lg font-bold hover:bg-primary/90 transition-colors shadow-sm">
+                  Report Issue
+                </Link>
+              </div>
+            ) : (
+              <div className="grid gap-3">
+                {allReports.map(r => (
+                  <Link 
+                    key={r.id || r.ticket_id} 
+                    to={`/tracking?id=${encodeURIComponent(r.ticket_id)}`}
+                    className="flex items-center gap-4 p-4 bg-surface-container-lowest rounded-2xl border border-outline-variant/30 hover:bg-surface-container-low transition-all active:scale-[0.98] shadow-sm group"
+                  >
+                    <div className="w-12 h-12 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                      <span className="material-symbols-outlined">track_changes</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-title-md font-bold text-on-surface truncate">{r.category}</h3>
+                      <p className="font-body-sm text-on-surface-variant truncate">{r.location_address || r.ticket_id}</p>
+                    </div>
+                    <div className="flex flex-col items-end gap-1">
+                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                        r.status === 'Resolved' ? 'bg-tertiary-fixed text-on-tertiary-fixed' : 
+                        r.status === 'Cancelled' ? 'bg-surface-container-high text-on-surface-variant' :
+                        r.status === 'In Progress' ? 'bg-secondary-fixed text-on-secondary-fixed' : 
+                        'bg-primary-fixed text-on-primary-fixed'
+                      }`}>
+                        {r.status}
+                      </span>
+                      <span className="material-symbols-outlined text-on-surface-variant group-hover:text-primary transition-colors text-[20px]">
+                        chevron_right
+                      </span>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+        </main>
+        <BottomNav active="tracking" />
+      </div>
+    );
+  }
+
+  if (ticketParam && !report) {
+    return (
+      <div className="w-full h-screen flex flex-col bg-surface">
+        <Header />
+        <div className="flex-1 flex flex-col items-center justify-center gap-3 px-6 text-center">
+          <span className="material-symbols-outlined text-error text-[48px]">error</span>
+          <h2 className="font-headline-sm font-bold text-on-surface">Report Not Found</h2>
+          <p className="font-body-md text-on-surface-variant max-w-sm">
+            We couldn't find a report with ticket ID <strong>{ticketParam}</strong>. It might have been deleted or doesn't exist.
+          </p>
+          <Link to="/tracking" className="mt-4 px-6 py-2.5 bg-surface-container-high text-on-surface rounded-full font-label-lg font-bold hover:bg-surface-container-highest transition-colors">
+            View All Reports
+          </Link>
+        </div>
+        <BottomNav active="tracking" />
+      </div>
+    );
+  }
+
+  const currentReport = report!;
+
   return (
     <div className="w-full h-[100dvh] flex flex-col bg-surface">
       <Header />
@@ -77,6 +136,13 @@ export default function TrackingPage() {
         <section className="w-full px-gutter-lg pt-space-lg pb-space-md border-b border-outline-variant/20 shadow-sm bg-surface sticky top-0 z-40">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-space-sm">
+              <Link 
+                to="/tracking" 
+                className="w-10 h-10 mr-1 rounded-xl bg-surface-container-lowest border border-outline-variant/30 hover:bg-surface-container-low text-on-surface flex items-center justify-center transition-all shadow-sm active:scale-95 shrink-0"
+                aria-label="Back to all reports"
+              >
+                <span className="material-symbols-outlined text-[20px]">arrow_back</span>
+              </Link>
               <div className="flex flex-col">
                 <div className="flex items-center gap-2">
                   <span className="font-headline-md text-headline-md text-on-surface tracking-tight font-bold">
@@ -93,7 +159,7 @@ export default function TrackingPage() {
                   </div>
                 </div>
                 <span className="font-body-sm text-body-sm text-on-surface-variant mt-0.5">
-                  Live Supabase response tracker • {currentReport.location_address}
+                  Live response tracker • {currentReport.location_address}
                 </span>
               </div>
             </div>
@@ -274,13 +340,13 @@ export default function TrackingPage() {
                 </div>
                 <div className="flex-1 flex flex-col">
                   <div className="flex items-baseline justify-between">
-                    <span className="font-title-md text-title-md text-on-surface font-bold">Report Logged in Supabase</span>
+                    <span className="font-title-md text-title-md text-on-surface font-bold">Report Logged</span>
                     <span className="font-label-sm text-label-sm text-on-surface-variant font-mono">
                       {currentReport.created_at ? new Date(currentReport.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '10:32 AM'}
                     </span>
                   </div>
                   <p className="font-body-sm text-body-sm text-on-surface-variant mt-1">
-                    Citizen report stored with AI image evidence in PostgreSQL database.
+                    Citizen report securely logged with AI image evidence.
                   </p>
                 </div>
               </div>

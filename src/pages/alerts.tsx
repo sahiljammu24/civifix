@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Header, BottomNav } from '../components';
 import { fetchReports, CivicReport } from '../supabase';
+import { useAuth } from '../contexts/AuthContext';
 
 type AlertType = 'all' | 'status' | 'dispatch' | 'resolved' | 'critical';
 
@@ -156,6 +157,7 @@ const filterTabs: { key: AlertType; label: string; icon: string }[] = [
 ];
 
 export default function AlertsPage() {
+  const { user } = useAuth();
   const [reports, setReports] = useState<CivicReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState<AlertType>('all');
@@ -164,7 +166,8 @@ export default function AlertsPage() {
   useEffect(() => {
     async function load() {
       try {
-        const data = await fetchReports();
+        if (!user) return;
+        const data = await fetchReports(user.id);
         setReports(data || []);
       } catch (err) {
         console.error('Failed to load alerts:', err);
@@ -173,7 +176,7 @@ export default function AlertsPage() {
       }
     }
     load();
-  }, []);
+  }, [user]);
 
   const allAlerts = generateAlerts(reports);
   const filtered = activeFilter === 'all' ? allAlerts : allAlerts.filter(a => a.type === activeFilter);
