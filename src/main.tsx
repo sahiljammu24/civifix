@@ -12,6 +12,7 @@ import ProfilePage from './pages/profile';
 import MapPage from './pages/map';
 import AuthorityPortal from './pages/authority';
 import AlertsPage from './pages/alerts';
+import ExplorePage from './pages/explore';
 
 import { APIProvider } from '@vis.gl/react-google-maps';
 
@@ -34,6 +35,7 @@ function App() {
           <Route path="/map" element={<MapPage />} />
           <Route path="/admin" element={<AuthorityPortal />} />
           <Route path="/notifications" element={<AlertsPage />} />
+          <Route path="/explore" element={<ExplorePage />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </HashRouter>

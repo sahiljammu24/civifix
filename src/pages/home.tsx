@@ -244,10 +244,7 @@ export default function HomePage() {
             Dispatch Engine v4.2 Active across 14 Municipal Wards. Mean triage duration: 11 minutes.
           </p>
         </div>
-        <Link to="/map" className="hidden sm:inline-flex items-center gap-space-xs text-primary font-title-sm text-title-sm hover:underline"  >
-          <span>Ward Operations Map</span>
-          <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
-        </Link>
+
       </div>
     </section>
     {/**/}
@@ -272,7 +269,7 @@ export default function HomePage() {
               <span className="material-symbols-outlined text-[22px]">add_a_photo</span>
               <span>Report an Issue</span>
             </Link>
-            <Link to="/dashboard" className="inline-flex items-center justify-center gap-space-sm px-space-lg py-space-sm rounded-lg bg-surface-container-lowest hover:bg-surface-container text-on-surface font-title-md text-title-md shadow-sm transition-colors"  >
+            <Link to="/explore" className="inline-flex items-center justify-center gap-space-sm px-space-lg py-space-sm rounded-lg bg-surface-container-lowest hover:bg-surface-container text-on-surface font-title-md text-title-md shadow-sm transition-colors"  >
               <span className="material-symbols-outlined text-primary text-[22px]">explore</span>
               <span>Explore Issues</span>
             </Link>
@@ -313,16 +310,7 @@ export default function HomePage() {
           {/**/}
           <div className="w-full bg-surface-container-lowest rounded-2xl shadow-xl overflow-hidden p-space-sm">
             {/**/}
-            <div className="bg-surface-container-low px-space-md py-space-sm rounded-xl flex items-center justify-between gap-space-sm">
-              <div className="flex items-center gap-space-xs flex-1 max-w-xs bg-surface-container-lowest px-space-sm py-1.5 rounded-lg shadow-sm">
-                <span className="material-symbols-outlined text-outline text-[18px]">search</span>
-                <input className="bg-transparent font-body-sm text-body-sm text-on-surface w-full focus:outline-none cursor-default" placeholder="Search by street or ward..." readOnly type="text" value="Main St Corridor • Ward 4"/>
-              </div>
-              <div className="flex items-center gap-space-xs bg-secondary-container px-space-sm py-1.5 rounded-lg">
-                <span className="inline-block w-2 h-2 rounded-full bg-tertiary animate-ping"></span>
-                <span className="font-label-sm text-label-sm text-on-secondary-fixed">Active Crews: 42 on duty</span>
-              </div>
-            </div>
+
             <div className="relative w-full h-[460px] mt-space-sm rounded-xl overflow-hidden bg-surface-container-high">
               <svg className="absolute inset-0 w-full h-full opacity-60" xmlns="http://www.w3.org/2000/svg">
                 <defs>
@@ -427,11 +415,7 @@ export default function HomePage() {
                 </div>
               </div>
               {/**/}
-              <div className="absolute bottom-4 left-4 bg-surface-container-lowest/95 backdrop-blur-sm p-1.5 rounded-lg shadow-md flex items-center gap-1">
-                <button className="px-2 py-1 bg-primary text-on-primary rounded font-label-sm text-label-sm">Grid</button>
-                <button className="px-2 py-1 bg-surface-container hover:bg-surface-variant text-on-surface rounded font-label-sm text-label-sm">Heatmap</button>
-                <button className="px-2 py-1 bg-surface-container hover:bg-surface-variant text-on-surface rounded font-label-sm text-label-sm">Crews</button>
-              </div>
+
             </div>
             {/**/}
             <div className="mt-space-sm px-space-sm py-1 flex items-center justify-between text-on-surface-variant font-label-sm text-label-sm">
