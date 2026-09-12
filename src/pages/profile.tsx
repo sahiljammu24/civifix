@@ -62,7 +62,7 @@ export default function ProfilePage() {
 
   // App Settings State (Mock Local)
   const [pushEnabled, setPushEnabled] = useState(true);
-  const [darkEnabled, setDarkEnabled] = useState(false);
+  const [darkEnabled, setDarkEnabled] = useState(() => localStorage.getItem('dashboard_dark_mode') === 'true');
 
   useEffect(() => {
     if (profile) {
@@ -171,30 +171,30 @@ export default function ProfilePage() {
   const displayAvatar = pendingAvatarBase64 || localAvatar || profile?.avatar_url;
 
   return (
-    <>
+    <div className={darkEnabled ? "dark" : ""}>
       <Header title="Profile" showBrand={false} showBack={true} />
-      <main className="flex-1 flex flex-col relative w-full pt-20 pb-24 md:pb-8 md:ml-24 bg-surface min-h-screen">
+      <main className="flex-1 flex flex-col relative w-full pt-20 pb-24 md:pb-8 md:ml-24 bg-surface dark:bg-slate-900 min-h-screen transition-colors duration-300">
         <div className="w-full max-w-2xl mx-auto flex flex-col px-margin gap-space-lg pt-space-md">
 
           {/* Profile Card */}
           <section>
-            <div className="relative rounded-3xl bg-surface-container-lowest p-space-lg shadow-xl shadow-surface-container-highest/30 border border-outline-variant/20 overflow-hidden flex flex-col items-center text-center">
-              <div className="absolute top-0 inset-x-0 h-32 bg-gradient-to-br from-primary/10 to-tertiary/10"></div>
+            <div className="relative rounded-3xl bg-surface-container-lowest dark:bg-slate-800 p-space-lg shadow-xl shadow-surface-container-highest/30 dark:shadow-black/40 border border-outline-variant/20 dark:border-slate-700 overflow-hidden flex flex-col items-center text-center transition-colors">
+              <div className="absolute top-0 inset-x-0 h-32 bg-gradient-to-br from-primary/10 to-tertiary/10 dark:from-blue-900/30 dark:to-emerald-900/30"></div>
               
               <div className="relative mt-4 mb-4">
-                <div className="w-24 h-24 rounded-full p-1 bg-surface-container-lowest shadow-md border border-outline-variant/10 relative z-10 flex items-center justify-center">
+                <div className="w-24 h-24 rounded-full p-1 bg-surface-container-lowest dark:bg-slate-800 shadow-md border border-outline-variant/10 dark:border-slate-700 relative z-10 flex items-center justify-center">
                   <div className="absolute inset-0 rounded-full border-[3px] border-transparent" style={{ background: 'linear-gradient(135deg, var(--color-primary), var(--color-tertiary)) border-box', WebkitMask: 'linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0)', WebkitMaskComposite: 'destination-out', maskComposite: 'exclude' }}></div>
                   
                   {displayAvatar ? (
                     <img alt="Profile" className="w-full h-full rounded-full object-cover relative z-10" src={displayAvatar} />
                   ) : (
-                    <div className="w-full h-full rounded-full bg-primary text-on-primary flex items-center justify-center text-3xl font-bold relative z-10">
+                    <div className="w-full h-full rounded-full bg-primary dark:bg-blue-600 text-on-primary flex items-center justify-center text-3xl font-bold relative z-10">
                       {initial}
                     </div>
                   )}
                   
-                  <button onClick={() => setActiveModal('personalInfo')} className="absolute bottom-0 right-0 w-7 h-7 rounded-full bg-surface-container-lowest flex items-center justify-center shadow-lg z-20 hover:scale-110 transition-transform">
-                    <div className="w-5 h-5 rounded-full bg-primary text-on-primary flex items-center justify-center">
+                  <button onClick={() => setActiveModal('personalInfo')} className="absolute bottom-0 right-0 w-7 h-7 rounded-full bg-surface-container-lowest dark:bg-slate-700 flex items-center justify-center shadow-lg z-20 hover:scale-110 transition-transform">
+                    <div className="w-5 h-5 rounded-full bg-primary dark:bg-blue-600 text-on-primary flex items-center justify-center">
                       <span className="material-symbols-outlined text-[12px]">edit</span>
                     </div>
                   </button>
@@ -202,27 +202,27 @@ export default function ProfilePage() {
               </div>
 
               <div className="flex flex-col gap-1 relative z-10">
-                <h2 className="font-headline-sm text-headline-sm text-on-surface font-bold tracking-tight">{profile?.full_name || emailName}</h2>
-                <p className="font-body-md text-body-md text-on-surface-variant">{profile?.address || 'No Address Set'}</p>
+                <h2 className="font-headline-sm text-headline-sm text-on-surface dark:text-white font-bold tracking-tight">{profile?.full_name || emailName}</h2>
+                <p className="font-body-md text-body-md text-on-surface-variant dark:text-slate-300">{profile?.address || 'No Address Set'}</p>
               </div>
               
-              <div className="inline-flex items-center gap-1.5 mt-4 px-3 py-1 rounded-full bg-tertiary-container/30 text-tertiary font-label-sm text-label-sm font-bold uppercase tracking-wider border border-tertiary/20 backdrop-blur-sm cursor-pointer hover:bg-tertiary-container/50 transition-colors" onClick={() => setActiveModal('community')}>
+              <div className="inline-flex items-center gap-1.5 mt-4 px-3 py-1 rounded-full bg-tertiary-container/30 dark:bg-emerald-900/30 text-tertiary dark:text-emerald-400 font-label-sm text-label-sm font-bold uppercase tracking-wider border border-tertiary/20 dark:border-emerald-800/30 backdrop-blur-sm cursor-pointer hover:bg-tertiary-container/50 dark:hover:bg-emerald-900/50 transition-colors" onClick={() => setActiveModal('community')}>
                 <span className="material-symbols-outlined text-[16px]" style={{ fontVariationSettings: "'FILL' 1" }}>workspace_premium</span>
                 <span>Active Citizen</span>
               </div>
 
-              <div className="grid grid-cols-3 gap-2 w-full mt-6 pt-6 border-t border-outline-variant/10 relative z-10">
+              <div className="grid grid-cols-3 gap-2 w-full mt-6 pt-6 border-t border-outline-variant/10 dark:border-slate-700 relative z-10">
                 <div className="flex flex-col items-center">
-                  <span className="font-title-lg text-title-lg text-on-surface font-bold">{stats.total}</span>
-                  <span className="font-label-sm text-label-sm text-on-surface-variant">Reports</span>
+                  <span className="font-title-lg text-title-lg text-on-surface dark:text-white font-bold">{stats.total}</span>
+                  <span className="font-label-sm text-label-sm text-on-surface-variant dark:text-slate-400">Reports</span>
                 </div>
-                <div className="flex flex-col items-center border-l border-r border-outline-variant/20">
-                  <span className="font-title-lg text-title-lg text-on-surface font-bold">{stats.accuracy}%</span>
-                  <span className="font-label-sm text-label-sm text-on-surface-variant">Accuracy</span>
+                <div className="flex flex-col items-center border-l border-r border-outline-variant/20 dark:border-slate-700">
+                  <span className="font-title-lg text-title-lg text-on-surface dark:text-white font-bold">{stats.accuracy}%</span>
+                  <span className="font-label-sm text-label-sm text-on-surface-variant dark:text-slate-400">Accuracy</span>
                 </div>
                 <div className="flex flex-col items-center">
-                  <span className="font-title-lg text-title-lg text-on-surface font-bold">{stats.impact}</span>
-                  <span className="font-label-sm text-label-sm text-on-surface-variant">Impact</span>
+                  <span className="font-title-lg text-title-lg text-on-surface dark:text-white font-bold">{stats.impact}</span>
+                  <span className="font-label-sm text-label-sm text-on-surface-variant dark:text-slate-400">Impact</span>
                 </div>
               </div>
             </div>
@@ -231,66 +231,66 @@ export default function ProfilePage() {
           {/* Menus */}
           <section className="flex flex-col gap-6">
             <div className="flex flex-col gap-2">
-              <h3 className="font-label-md text-label-md text-on-surface-variant font-bold uppercase tracking-widest pl-4">Account</h3>
-              <div className="bg-surface-container-lowest rounded-2xl shadow-sm border border-outline-variant/20 overflow-hidden">
-                <button onClick={() => setActiveModal('personalInfo')} className="w-full flex items-center justify-between p-4 hover:bg-surface-container-low transition-colors active:bg-surface-container border-b border-outline-variant/10">
+              <h3 className="font-label-md text-label-md text-on-surface-variant dark:text-slate-400 font-bold uppercase tracking-widest pl-4">Account</h3>
+              <div className="bg-surface-container-lowest dark:bg-slate-800 rounded-2xl shadow-sm border border-outline-variant/20 dark:border-slate-700 overflow-hidden transition-colors">
+                <button onClick={() => setActiveModal('personalInfo')} className="w-full flex items-center justify-between p-4 hover:bg-surface-container-low dark:hover:bg-slate-700 transition-colors active:bg-surface-container dark:active:bg-slate-600 border-b border-outline-variant/10 dark:border-slate-700">
                   <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center"><span className="material-symbols-outlined">person</span></div>
-                    <span className="font-title-md text-title-md text-on-surface font-medium">Personal Information</span>
+                    <div className="w-10 h-10 rounded-xl bg-primary/10 dark:bg-blue-900/40 text-primary dark:text-blue-400 flex items-center justify-center"><span className="material-symbols-outlined">person</span></div>
+                    <span className="font-title-md text-title-md text-on-surface dark:text-white font-medium">Personal Information</span>
                   </div>
-                  <span className="material-symbols-outlined text-on-surface-variant">chevron_right</span>
+                  <span className="material-symbols-outlined text-on-surface-variant dark:text-slate-400">chevron_right</span>
                 </button>
-                <button onClick={() => setActiveModal('identity')} className="w-full flex items-center justify-between p-4 hover:bg-surface-container-low transition-colors active:bg-surface-container border-b border-outline-variant/10">
+                <button onClick={() => setActiveModal('identity')} className="w-full flex items-center justify-between p-4 hover:bg-surface-container-low dark:hover:bg-slate-700 transition-colors active:bg-surface-container dark:active:bg-slate-600 border-b border-outline-variant/10 dark:border-slate-700">
                   <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-xl bg-secondary/10 text-secondary flex items-center justify-center"><span className="material-symbols-outlined">verified_user</span></div>
-                    <span className="font-title-md text-title-md text-on-surface font-medium">Identity Verification</span>
+                    <div className="w-10 h-10 rounded-xl bg-secondary/10 dark:bg-slate-600/40 text-secondary dark:text-slate-300 flex items-center justify-center"><span className="material-symbols-outlined">verified_user</span></div>
+                    <span className="font-title-md text-title-md text-on-surface dark:text-white font-medium">Identity Verification</span>
                   </div>
                   <div className="flex items-center gap-2">
                     {profile?.is_verified ? (
-                      <span className="font-label-sm text-label-sm bg-tertiary-container text-on-tertiary-container px-2 py-0.5 rounded-full font-bold">Verified</span>
+                      <span className="font-label-sm text-label-sm bg-tertiary-container dark:bg-emerald-900 text-on-tertiary-container dark:text-emerald-200 px-2 py-0.5 rounded-full font-bold">Verified</span>
                     ) : (
-                      <span className="font-label-sm text-label-sm bg-error-container text-on-error-container px-2 py-0.5 rounded-full font-bold">Unverified</span>
+                      <span className="font-label-sm text-label-sm bg-error-container dark:bg-red-900 text-on-error-container dark:text-red-200 px-2 py-0.5 rounded-full font-bold">Unverified</span>
                     )}
-                    <span className="material-symbols-outlined text-on-surface-variant">chevron_right</span>
+                    <span className="material-symbols-outlined text-on-surface-variant dark:text-slate-400">chevron_right</span>
                   </div>
                 </button>
-                <button onClick={() => setActiveModal('appSettings')} className="w-full flex items-center justify-between p-4 hover:bg-surface-container-low transition-colors active:bg-surface-container">
+                <button onClick={() => setActiveModal('appSettings')} className="w-full flex items-center justify-between p-4 hover:bg-surface-container-low dark:hover:bg-slate-700 transition-colors active:bg-surface-container dark:active:bg-slate-600">
                   <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-xl bg-surface-container-high text-on-surface flex items-center justify-center"><span className="material-symbols-outlined">settings</span></div>
-                    <span className="font-title-md text-title-md text-on-surface font-medium">App Settings</span>
+                    <div className="w-10 h-10 rounded-xl bg-surface-container-high dark:bg-slate-600 text-on-surface dark:text-white flex items-center justify-center"><span className="material-symbols-outlined">settings</span></div>
+                    <span className="font-title-md text-title-md text-on-surface dark:text-white font-medium">App Settings</span>
                   </div>
-                  <span className="material-symbols-outlined text-on-surface-variant">chevron_right</span>
+                  <span className="material-symbols-outlined text-on-surface-variant dark:text-slate-400">chevron_right</span>
                 </button>
               </div>
             </div>
             
             <div className="flex flex-col gap-2">
-              <h3 className="font-label-md text-label-md text-on-surface-variant font-bold uppercase tracking-widest pl-4">Civic Engagement</h3>
-              <div className="bg-surface-container-lowest rounded-2xl shadow-sm border border-outline-variant/20 overflow-hidden">
-                <button onClick={() => navigate('/dashboard')} className="w-full flex items-center justify-between p-4 hover:bg-surface-container-low transition-colors active:bg-surface-container border-b border-outline-variant/10">
+              <h3 className="font-label-md text-label-md text-on-surface-variant dark:text-slate-400 font-bold uppercase tracking-widest pl-4">Civic Engagement</h3>
+              <div className="bg-surface-container-lowest dark:bg-slate-800 rounded-2xl shadow-sm border border-outline-variant/20 dark:border-slate-700 overflow-hidden transition-colors">
+                <button onClick={() => navigate('/dashboard')} className="w-full flex items-center justify-between p-4 hover:bg-surface-container-low dark:hover:bg-slate-700 transition-colors active:bg-surface-container dark:active:bg-slate-600 border-b border-outline-variant/10 dark:border-slate-700">
                   <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-xl bg-tertiary/10 text-tertiary flex items-center justify-center"><span className="material-symbols-outlined">history</span></div>
-                    <span className="font-title-md text-title-md text-on-surface font-medium">My Report History</span>
+                    <div className="w-10 h-10 rounded-xl bg-tertiary/10 dark:bg-emerald-900/40 text-tertiary dark:text-emerald-400 flex items-center justify-center"><span className="material-symbols-outlined">history</span></div>
+                    <span className="font-title-md text-title-md text-on-surface dark:text-white font-medium">My Report History</span>
                   </div>
-                  <span className="material-symbols-outlined text-on-surface-variant">chevron_right</span>
+                  <span className="material-symbols-outlined text-on-surface-variant dark:text-slate-400">chevron_right</span>
                 </button>
                 
-                <button onClick={() => setActiveModal('community')} className="w-full flex items-center justify-between p-4 hover:bg-surface-container-low transition-colors active:bg-surface-container">
+                <button onClick={() => setActiveModal('community')} className="w-full flex items-center justify-between p-4 hover:bg-surface-container-low dark:hover:bg-slate-700 transition-colors active:bg-surface-container dark:active:bg-slate-600">
                   <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-xl bg-error/10 text-error flex items-center justify-center"><span className="material-symbols-outlined">volunteer_activism</span></div>
-                    <span className="font-title-md text-title-md text-on-surface font-medium">Community Contributions</span>
+                    <div className="w-10 h-10 rounded-xl bg-error/10 dark:bg-red-900/40 text-error dark:text-red-400 flex items-center justify-center"><span className="material-symbols-outlined">volunteer_activism</span></div>
+                    <span className="font-title-md text-title-md text-on-surface dark:text-white font-medium">Community Contributions</span>
                   </div>
-                  <span className="material-symbols-outlined text-on-surface-variant">chevron_right</span>
+                  <span className="material-symbols-outlined text-on-surface-variant dark:text-slate-400">chevron_right</span>
                 </button>
               </div>
             </div>
             
-            <button onClick={handleSignOut} className="w-full mt-2 py-3 rounded-xl bg-surface-container-lowest border border-error/20 text-error font-title-md text-title-md hover:bg-error/5 hover:border-error/40 active:scale-95 transition-all font-bold flex items-center justify-center gap-2 shadow-sm">
+            <button onClick={handleSignOut} className="w-full mt-2 py-3 rounded-xl bg-surface-container-lowest dark:bg-slate-800 border border-error/20 dark:border-red-900 text-error dark:text-red-400 font-title-md text-title-md hover:bg-error/5 dark:hover:bg-red-900/20 active:scale-95 transition-all font-bold flex items-center justify-center gap-2 shadow-sm">
               <span className="material-symbols-outlined">logout</span>
               Sign Out
             </button>
             
-            <div className="text-center font-label-sm text-[11px] text-on-surface-variant/60 pb-8">
+            <div className="text-center font-label-sm text-[11px] text-on-surface-variant/60 dark:text-slate-500 pb-8">
               CivicFix v2.1.0 (Build 9021)<br/>Developed by Department of Municipal Innovation
             </div>
           </section>
@@ -301,18 +301,18 @@ export default function ProfilePage() {
       {/* Modals */}
       {activeModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-scrim/40 backdrop-blur-sm" onClick={() => setActiveModal(null)}></div>
+          <div className="absolute inset-0 bg-scrim/40 dark:bg-black/60 backdrop-blur-sm" onClick={() => setActiveModal(null)}></div>
           
-          <div className="relative bg-surface-container-lowest w-full max-w-md rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">
+          <div className="relative bg-surface-container-lowest dark:bg-slate-800 w-full max-w-md rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">
             
-            <div className="flex items-center justify-between p-4 border-b border-outline-variant/10">
-              <h3 className="font-title-lg text-title-lg text-on-surface font-bold">
+            <div className="flex items-center justify-between p-4 border-b border-outline-variant/10 dark:border-slate-700">
+              <h3 className="font-title-lg text-title-lg text-on-surface dark:text-white font-bold">
                 {activeModal === 'personalInfo' && 'Personal Information'}
                 {activeModal === 'identity' && 'Identity Verification'}
                 {activeModal === 'appSettings' && 'App Settings'}
                 {activeModal === 'community' && 'Community Contributions'}
               </h3>
-              <button onClick={() => setActiveModal(null)} className="w-10 h-10 rounded-full flex items-center justify-center hover:bg-surface-container-high transition-colors text-on-surface-variant">
+              <button onClick={() => setActiveModal(null)} className="w-10 h-10 rounded-full flex items-center justify-center hover:bg-surface-container-high dark:hover:bg-slate-700 transition-colors text-on-surface-variant dark:text-slate-400">
                 <span className="material-symbols-outlined">close</span>
               </button>
             </div>
@@ -322,33 +322,33 @@ export default function ProfilePage() {
               {activeModal === 'personalInfo' && (
                 <form onSubmit={handleSaveProfile} className="flex flex-col gap-4">
                   <div>
-                    <label className="block font-label-md text-on-surface mb-1">Profile Picture (Optional)</label>
+                    <label className="block font-label-md text-on-surface dark:text-slate-200 mb-1">Profile Picture (Optional)</label>
                     <input 
                       type="file" 
                       accept="image/*"
                       onChange={handleFileChange}
-                      className="w-full font-body-sm text-on-surface-variant file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:font-semibold file:bg-primary-container file:text-on-primary-container hover:file:bg-primary/20"
+                      className="w-full font-body-sm text-on-surface-variant dark:text-slate-300 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:font-semibold file:bg-primary-container dark:file:bg-blue-900 file:text-on-primary-container dark:file:text-blue-100 hover:file:bg-primary/20 dark:hover:file:bg-blue-800"
                     />
                     {pendingAvatarBase64 && (
-                      <div className="mt-2 text-primary font-label-sm font-bold flex items-center gap-1">
+                      <div className="mt-2 text-primary dark:text-blue-400 font-label-sm font-bold flex items-center gap-1">
                         <span className="material-symbols-outlined text-[16px]">check_circle</span>
                         Cropped image ready to save
                       </div>
                     )}
                   </div>
                   <div>
-                    <label className="block font-label-md text-on-surface mb-1">Full Name</label>
-                    <input type="text" value={editName} onChange={e => setEditName(e.target.value)} required className="w-full px-4 py-3 rounded-xl bg-surface-container border border-outline-variant/30 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all" />
+                    <label className="block font-label-md text-on-surface dark:text-slate-200 mb-1">Full Name</label>
+                    <input type="text" value={editName} onChange={e => setEditName(e.target.value)} required className="w-full px-4 py-3 rounded-xl bg-surface-container dark:bg-slate-700 text-on-surface dark:text-white border border-outline-variant/30 dark:border-slate-600 focus:border-primary dark:focus:border-blue-500 focus:ring-1 focus:ring-primary dark:focus:ring-blue-500 outline-none transition-all" />
                   </div>
                   <div>
-                    <label className="block font-label-md text-on-surface mb-1">Phone Number</label>
-                    <input type="tel" value={editPhone} onChange={e => setEditPhone(e.target.value)} required className="w-full px-4 py-3 rounded-xl bg-surface-container border border-outline-variant/30 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all" />
+                    <label className="block font-label-md text-on-surface dark:text-slate-200 mb-1">Phone Number</label>
+                    <input type="tel" value={editPhone} onChange={e => setEditPhone(e.target.value)} required className="w-full px-4 py-3 rounded-xl bg-surface-container dark:bg-slate-700 text-on-surface dark:text-white border border-outline-variant/30 dark:border-slate-600 focus:border-primary dark:focus:border-blue-500 focus:ring-1 focus:ring-primary dark:focus:ring-blue-500 outline-none transition-all" />
                   </div>
                   <div>
-                    <label className="block font-label-md text-on-surface mb-1">Address</label>
-                    <textarea value={editAddress} onChange={e => setEditAddress(e.target.value)} required className="w-full px-4 py-3 rounded-xl bg-surface-container border border-outline-variant/30 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all resize-none h-24" />
+                    <label className="block font-label-md text-on-surface dark:text-slate-200 mb-1">Address</label>
+                    <textarea value={editAddress} onChange={e => setEditAddress(e.target.value)} required className="w-full px-4 py-3 rounded-xl bg-surface-container dark:bg-slate-700 text-on-surface dark:text-white border border-outline-variant/30 dark:border-slate-600 focus:border-primary dark:focus:border-blue-500 focus:ring-1 focus:ring-primary dark:focus:ring-blue-500 outline-none transition-all resize-none h-24" />
                   </div>
-                  <button type="submit" disabled={isSaving} className="w-full mt-2 py-3 bg-primary text-on-primary rounded-xl font-title-md font-bold hover:bg-primary/90 active:scale-95 transition-all disabled:opacity-70 flex justify-center">
+                  <button type="submit" disabled={isSaving} className="w-full mt-2 py-3 bg-primary dark:bg-blue-600 text-on-primary rounded-xl font-title-md font-bold hover:bg-primary/90 dark:hover:bg-blue-700 active:scale-95 transition-all disabled:opacity-70 flex justify-center">
                     {isSaving ? <span className="material-symbols-outlined animate-spin">progress_activity</span> : 'Save Changes'}
                   </button>
                 </form>
@@ -358,20 +358,20 @@ export default function ProfilePage() {
                 <div className="flex flex-col items-center text-center py-4 gap-4">
                   {profile?.is_verified ? (
                     <>
-                      <div className="w-20 h-20 rounded-full bg-tertiary-container text-on-tertiary-container flex items-center justify-center">
+                      <div className="w-20 h-20 rounded-full bg-tertiary-container dark:bg-emerald-900 text-on-tertiary-container dark:text-emerald-200 flex items-center justify-center">
                         <span className="material-symbols-outlined text-[40px]">verified</span>
                       </div>
-                      <h4 className="font-title-lg text-title-lg font-bold text-on-surface">Verified Citizen</h4>
-                      <p className="font-body-md text-on-surface-variant">Your identity has been confirmed by the municipal network. You have full access to reporting features.</p>
+                      <h4 className="font-title-lg text-title-lg font-bold text-on-surface dark:text-white">Verified Citizen</h4>
+                      <p className="font-body-md text-on-surface-variant dark:text-slate-300">Your identity has been confirmed by the municipal network. You have full access to reporting features.</p>
                     </>
                   ) : (
                     <>
-                      <div className="w-20 h-20 rounded-full bg-error-container text-on-error-container flex items-center justify-center">
+                      <div className="w-20 h-20 rounded-full bg-error-container dark:bg-red-900 text-on-error-container dark:text-red-200 flex items-center justify-center">
                         <span className="material-symbols-outlined text-[40px]">gpp_maybe</span>
                       </div>
-                      <h4 className="font-title-lg text-title-lg font-bold text-on-surface">Unverified</h4>
-                      <p className="font-body-md text-on-surface-variant">Please complete your profile information to verify your identity.</p>
-                      <button onClick={() => {setActiveModal('personalInfo')}} className="mt-4 px-6 py-2 bg-primary text-on-primary rounded-full font-bold">Complete Profile</button>
+                      <h4 className="font-title-lg text-title-lg font-bold text-on-surface dark:text-white">Unverified</h4>
+                      <p className="font-body-md text-on-surface-variant dark:text-slate-300">Please complete your profile information to verify your identity.</p>
+                      <button onClick={() => {setActiveModal('personalInfo')}} className="mt-4 px-6 py-2 bg-primary dark:bg-blue-600 text-on-primary rounded-full font-bold">Complete Profile</button>
                     </>
                   )}
                 </div>
@@ -381,32 +381,37 @@ export default function ProfilePage() {
                 <div className="flex flex-col gap-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h4 className="font-title-md font-bold text-on-surface">Push Notifications</h4>
-                      <p className="font-body-sm text-on-surface-variant">Get alerts for report updates</p>
+                      <h4 className="font-title-md font-bold text-on-surface dark:text-white">Push Notifications</h4>
+                      <p className="font-body-sm text-on-surface-variant dark:text-slate-400">Get alerts for report updates</p>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer">
                       <input type="checkbox" className="sr-only peer" checked={pushEnabled} onChange={() => setPushEnabled(!pushEnabled)} />
-                      <div className="w-11 h-6 bg-surface-container-highest peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                      <div className="w-11 h-6 bg-surface-container-highest dark:bg-slate-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary dark:peer-checked:bg-blue-500"></div>
                     </label>
                   </div>
                   <div className="flex items-center justify-between">
                     <div>
-                      <h4 className="font-title-md font-bold text-on-surface">Dark Mode</h4>
-                      <p className="font-body-sm text-on-surface-variant">Toggle dark theme</p>
+                      <h4 className="font-title-md font-bold text-on-surface dark:text-white">Dark Mode</h4>
+                      <p className="font-body-sm text-on-surface-variant dark:text-slate-400">Toggle dark theme</p>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer">
-                      <input type="checkbox" className="sr-only peer" checked={darkEnabled} onChange={() => {setDarkEnabled(!darkEnabled); showToast('Theme switching coming soon');}} />
-                      <div className="w-11 h-6 bg-surface-container-highest peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                      <input type="checkbox" className="sr-only peer" checked={darkEnabled} onChange={() => {
+                        const newState = !darkEnabled;
+                        setDarkEnabled(newState);
+                        localStorage.setItem('dashboard_dark_mode', String(newState));
+                        showToast(newState ? 'Dark mode enabled for dashboard' : 'Dark mode disabled for dashboard');
+                      }} />
+                      <div className="w-11 h-6 bg-surface-container-highest dark:bg-slate-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary dark:peer-checked:bg-blue-500"></div>
                     </label>
                   </div>
                   <div className="flex items-center justify-between opacity-50">
                     <div>
-                      <h4 className="font-title-md font-bold text-on-surface">Location Services</h4>
-                      <p className="font-body-sm text-on-surface-variant">Required for map features</p>
+                      <h4 className="font-title-md font-bold text-on-surface dark:text-white">Location Services</h4>
+                      <p className="font-body-sm text-on-surface-variant dark:text-slate-400">Required for map features</p>
                     </div>
                     <label className="relative inline-flex items-center cursor-not-allowed">
                       <input type="checkbox" className="sr-only peer" checked={true} disabled />
-                      <div className="w-11 h-6 bg-primary peer-focus:outline-none rounded-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:translate-x-[20px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
+                      <div className="w-11 h-6 bg-primary dark:bg-blue-500 peer-focus:outline-none rounded-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:translate-x-[20px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
                     </label>
                   </div>
                 </div>
@@ -414,26 +419,26 @@ export default function ProfilePage() {
 
               {activeModal === 'community' && (
                 <div className="flex flex-col gap-6">
-                  <div className="p-4 bg-tertiary-container/30 rounded-2xl border border-tertiary/20 flex gap-4 items-center">
-                    <div className="w-12 h-12 rounded-full bg-tertiary text-on-tertiary flex items-center justify-center shrink-0">
+                  <div className="p-4 bg-tertiary-container/30 dark:bg-emerald-900/30 rounded-2xl border border-tertiary/20 dark:border-emerald-800 flex gap-4 items-center">
+                    <div className="w-12 h-12 rounded-full bg-tertiary dark:bg-emerald-600 text-on-tertiary flex items-center justify-center shrink-0">
                       <span className="material-symbols-outlined text-[24px]" style={{ fontVariationSettings: "'FILL' 1" }}>workspace_premium</span>
                     </div>
                     <div>
-                      <h4 className="font-title-md font-bold text-on-surface">Active Citizen</h4>
-                      <p className="font-body-sm text-on-surface-variant">Awarded for filing 10+ verified reports.</p>
+                      <h4 className="font-title-md font-bold text-on-surface dark:text-white">Active Citizen</h4>
+                      <p className="font-body-sm text-on-surface-variant dark:text-slate-300">Awarded for filing 10+ verified reports.</p>
                     </div>
                   </div>
-                  <div className="p-4 bg-surface-container rounded-2xl flex gap-4 items-center opacity-70">
-                    <div className="w-12 h-12 rounded-full bg-surface-container-highest text-on-surface-variant flex items-center justify-center shrink-0">
+                  <div className="p-4 bg-surface-container dark:bg-slate-700 rounded-2xl flex gap-4 items-center opacity-70">
+                    <div className="w-12 h-12 rounded-full bg-surface-container-highest dark:bg-slate-600 text-on-surface-variant dark:text-slate-300 flex items-center justify-center shrink-0">
                       <span className="material-symbols-outlined text-[24px]">verified</span>
                     </div>
                     <div>
-                      <h4 className="font-title-md font-bold text-on-surface">Perfect Accuracy</h4>
-                      <p className="font-body-sm text-on-surface-variant">Reach 95% accuracy rate (Current: {stats.accuracy}%)</p>
+                      <h4 className="font-title-md font-bold text-on-surface dark:text-white">Perfect Accuracy</h4>
+                      <p className="font-body-sm text-on-surface-variant dark:text-slate-300">Reach 95% accuracy rate (Current: {stats.accuracy}%)</p>
                     </div>
                   </div>
                   <div className="text-center pt-4">
-                    <p className="font-label-md text-primary font-bold">Keep reporting to unlock more badges!</p>
+                    <p className="font-label-md text-primary dark:text-blue-400 font-bold">Keep reporting to unlock more badges!</p>
                   </div>
                 </div>
               )}
@@ -445,7 +450,7 @@ export default function ProfilePage() {
 
       {/* Fullscreen Cropper Overlay */}
       {imageSrc && (
-        <div className="fixed inset-0 z-[200] flex flex-col bg-surface">
+        <div className="fixed inset-0 z-[200] flex flex-col bg-surface dark:bg-slate-900">
           <div className="relative flex-1">
             <Cropper
               image={imageSrc}
@@ -458,16 +463,16 @@ export default function ProfilePage() {
               onZoomChange={setZoom}
             />
           </div>
-          <div className="p-4 bg-surface-container-lowest flex gap-4 justify-between items-center shadow-[0_-4px_20px_rgba(0,0,0,0.1)] relative z-10">
+          <div className="p-4 bg-surface-container-lowest dark:bg-slate-800 flex gap-4 justify-between items-center shadow-[0_-4px_20px_rgba(0,0,0,0.1)] dark:shadow-black/50 relative z-10">
             <button 
               onClick={() => setImageSrc(null)} 
-              className="px-6 py-3 font-title-md font-bold text-on-surface hover:bg-surface-container transition-colors rounded-xl"
+              className="px-6 py-3 font-title-md font-bold text-on-surface dark:text-white hover:bg-surface-container dark:hover:bg-slate-700 transition-colors rounded-xl"
             >
               Cancel
             </button>
             <button 
               onClick={handleConfirmCrop} 
-              className="px-8 py-3 bg-primary text-on-primary font-title-md font-bold rounded-xl hover:bg-primary/90 transition-colors shadow-sm"
+              className="px-8 py-3 bg-primary dark:bg-blue-600 text-on-primary font-title-md font-bold rounded-xl hover:bg-primary/90 dark:hover:bg-blue-700 transition-colors shadow-sm"
             >
               Crop Picture
             </button>
@@ -476,6 +481,6 @@ export default function ProfilePage() {
       )}
 
       <BottomNav />
-    </>
+    </div>
   );
 }

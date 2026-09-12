@@ -112,8 +112,8 @@
     @keyframes stgUp { to { opacity:1; transform:translateY(0); } }
     .toast-in { animation: tIn .4s cubic-bezier(.22,1,.36,1) forwards; }
     .toast-out { animation: tOut .3s ease-in forwards; }
-    @keyframes tIn { from{opacity:0;transform:translate(-50%,20px)} to{opacity:1;transform:translate(-50%,0)} }
-    @keyframes tOut { from{opacity:1;transform:translate(-50%,0)} to{opacity:0;transform:translate(-50%,20px)} }
+    @keyframes tIn { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes tOut { from{opacity:1;transform:translateY(0)} to{opacity:0;transform:translateY(20px)} }
   </style>
 </head>
 <body class="bg-surface font-body-md text-body-md text-on-surface flex flex-col min-h-screen">

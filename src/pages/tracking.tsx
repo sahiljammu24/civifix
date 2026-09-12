@@ -70,7 +70,7 @@ export default function TrackingPage() {
                 </Link>
               </div>
             ) : (
-              <div className="grid gap-3">
+              <div className="flex flex-col gap-3">
                 {allReports.map(r => (
                   <Link 
                     key={r.id || r.ticket_id} 
