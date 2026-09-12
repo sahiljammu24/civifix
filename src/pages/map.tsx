@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Header, BottomNav, showToast } from '../components';
-import { Map, Marker, useMap } from '@vis.gl/react-google-maps';
+import { Map, Marker, useMap, MapMouseEvent } from '@vis.gl/react-google-maps';
 import { fetchReports, CivicReport } from '../supabase';
 
 export default function MapPage() {
@@ -12,40 +12,84 @@ export default function MapPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
   const [hasRequestedLoc, setHasRequestedLoc] = useState(false);
+  const [droppedPin, setDroppedPin] = useState<{lat: number, lng: number} | null>(null);
   const map = useMap("DEMO_MAP_ID");
+
+  const handleMapClick = useCallback((e: MapMouseEvent) => {
+    if (e.detail.latLng) {
+      const lat = e.detail.latLng.lat;
+      const lng = e.detail.latLng.lng;
+      setDroppedPin({ lat, lng });
+      setSelectedIssue(null);
+    }
+  }, []);
 
   const locateUser = (silent = false) => {
     if (!navigator.geolocation) {
       if (!silent) showToast("Geolocation is not supported by your browser.");
+      fallbackToIP(silent);
       return;
     }
 
+    const onSuccess = (position: GeolocationPosition) => {
+      const pos = {
+        lat: position.coords.latitude,
+        lng: position.coords.longitude,
+      };
+      setUserLocation(pos);
+      if (map) {
+        map.panTo(pos);
+        map.setZoom(15);
+      }
+    };
+
+    // IP-based fallback for approximate location
+    const fallbackToIP = async (isSilent: boolean) => {
+      try {
+        const res = await fetch('https://ipapi.co/json/');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.latitude && data.longitude) {
+            const pos = { lat: data.latitude, lng: data.longitude };
+            setUserLocation(pos);
+            if (map) {
+              map.panTo(pos);
+              map.setZoom(13);
+            }
+            return;
+          }
+        }
+      } catch {
+        // ignore
+      }
+      if (!isSilent) showToast("Unable to get location. Please check GPS settings.");
+    };
+
+    const onError = (error: GeolocationPositionError) => {
+      // If high-accuracy timed out, retry with low accuracy
+      if (error.code === error.TIMEOUT) {
+        navigator.geolocation.getCurrentPosition(
+          onSuccess,
+          () => fallbackToIP(silent),
+          { enableHighAccuracy: false, timeout: 15000, maximumAge: Infinity }
+        );
+        return;
+      }
+      console.warn("Geolocation unavailable, using IP fallback.");
+      fallbackToIP(silent);
+    };
+
     navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const pos = {
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
-        };
-        setUserLocation(pos);
-        if (map) {
-          map.panTo(pos);
-          map.setZoom(15);
-        }
-      },
-      (error) => {
-        console.error("Geolocation error:", error);
-        if (!silent) {
-          showToast("Location Error: Unable to fetch location.");
-        }
-      },
-      { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+      onSuccess,
+      onError,
+      { enableHighAccuracy: true, timeout: 20000, maximumAge: 300000 }
     );
   };
 
   useEffect(() => {
     if (map && !hasRequestedLoc) {
       setHasRequestedLoc(true);
-      locateUser(true); // run silently on initial load
+      locateUser(true);
     }
   }, [map, hasRequestedLoc]);
 
@@ -56,16 +100,15 @@ export default function MapPage() {
         if (data && data.length > 0) {
           setReports(data);
         } else {
-          // fallback default report
           setReports([
             {
               id: 'demo-1',
               ticket_id: '#CF1024',
               category: 'Pothole',
               description: 'Severe road depression on Main St.',
-              location_address: 'Main St. & 4th Ave, Downtown',
-              latitude: 40.7128,
-              longitude: -74.0060,
+              location_address: 'LPU',
+              latitude: 31.25471,
+              longitude: 75.70434,
               image_url: '/pothole.jpg',
               status: 'In Progress',
               priority: 'High',
@@ -81,13 +124,19 @@ export default function MapPage() {
   }, []);
 
   const filteredReports = reports.filter(r => {
-    const matchesFilter = filter === 'All' || r.category.toLowerCase().includes(filter.toLowerCase());
+    const matchesFilter = filter === 'All' || (r.category && r.category.toLowerCase().includes(filter.toLowerCase()));
     const matchesSearch = !searchTerm || 
-      r.ticket_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      r.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      r.location_address.toLowerCase().includes(searchTerm.toLowerCase());
+      (r.ticket_id && r.ticket_id.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (r.category && r.category.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (r.location_address && r.location_address.toLowerCase().includes(searchTerm.toLowerCase()));
     return matchesFilter && matchesSearch;
   });
+
+  useEffect(() => {
+    if (searchTerm && filteredReports.length > 0 && map) {
+      map.panTo({ lat: filteredReports[0].latitude, lng: filteredReports[0].longitude });
+    }
+  }, [searchTerm, filteredReports, map]);
 
   return (
     <div className="w-full h-screen flex flex-col">
@@ -96,15 +145,16 @@ export default function MapPage() {
         <div className="absolute inset-0 bg-surface-container">
           <Map
             defaultZoom={15}
-            defaultCenter={{ lat: 40.7128, lng: -74.0060 }}
+            defaultCenter={{ lat: 31.25471, lng: 75.70434 }}
             mapId="DEMO_MAP_ID"
             disableDefaultUI={true}
+            onClick={handleMapClick}
           >
             {filteredReports.map((issue) => (
               <Marker
                 key={issue.id || issue.ticket_id}
                 position={{ lat: issue.latitude, lng: issue.longitude }}
-                onClick={() => setSelectedIssue(issue)}
+                onClick={() => { setSelectedIssue(issue); setDroppedPin(null); }}
                 title={`${issue.ticket_id} - ${issue.category}`}
               />
             ))}
@@ -114,6 +164,20 @@ export default function MapPage() {
                 icon="https://maps.google.com/mapfiles/ms/icons/blue-dot.png" 
                 title="Your Location"
                 zIndex={100}
+              />
+            )}
+            {droppedPin && (
+              <Marker
+                position={droppedPin}
+                icon="https://maps.google.com/mapfiles/ms/icons/green-dot.png"
+                title="Dropped Pin"
+                zIndex={99}
+                draggable={true}
+                onDragEnd={(e: google.maps.MapMouseEvent) => {
+                  if (e.latLng) {
+                    setDroppedPin({ lat: e.latLng.lat(), lng: e.latLng.lng() });
+                  }
+                }}
               />
             )}
           </Map>
@@ -181,6 +245,44 @@ export default function MapPage() {
               <button onClick={() => setSelectedIssue(null)} className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-surface-container-lowest shadow-lg flex items-center justify-center text-on-surface-variant hover:text-error hover:bg-error/10 transition-all border border-outline-variant/20">
                 <span className="material-symbols-outlined text-[16px]">close</span>
               </button>
+            </>
+          )}
+        </div>
+        
+        {/* Dropped Pin Card */}
+        <div className={`absolute bottom-24 left-4 right-4 md:left-32 md:w-96 md:bottom-8 z-10 bg-surface-container-lowest/95 backdrop-blur-2xl rounded-3xl shadow-[0_16px_40px_rgba(0,0,0,0.12)] border border-outline-variant/30 p-space-md flex flex-col gap-3 transition-all duration-300 pointer-events-auto ${droppedPin && !selectedIssue ? 'translate-y-0 opacity-100 scale-100' : 'translate-y-48 opacity-0 scale-95 pointer-events-none'}`}>
+          {droppedPin && (
+            <>
+              <div className="flex gap-4">
+                <div className="w-14 h-14 shrink-0 rounded-2xl bg-tertiary-container/30 flex items-center justify-center shadow-inner">
+                  <span className="material-symbols-outlined text-[28px] text-tertiary">location_on</span>
+                </div>
+                <div className="flex-1 flex flex-col justify-center min-w-0 py-1">
+                  <span className="font-label-sm text-[11px] font-bold uppercase tracking-widest text-tertiary">Dropped Pin</span>
+                  <span className="font-mono text-[12px] text-on-surface-variant mt-1">
+                    {droppedPin.lat.toFixed(5)}, {droppedPin.lng.toFixed(5)}
+                  </span>
+                  <span className="font-body-sm text-[11px] text-on-surface-variant/70 mt-0.5">
+                    Drag the green pin to adjust position
+                  </span>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => navigate(`/report?lat=${droppedPin.lat}&lng=${droppedPin.lng}`)}
+                  className="flex-1 py-2.5 rounded-xl bg-primary text-on-primary font-title-sm text-xs font-bold flex items-center justify-center gap-1.5 hover:bg-primary/90 transition-colors shadow-sm"
+                >
+                  <span className="material-symbols-outlined text-[18px]">add_circle</span>
+                  <span>Report Issue Here</span>
+                </button>
+                <button 
+                  onClick={() => setDroppedPin(null)}
+                  className="py-2.5 px-4 rounded-xl bg-surface-container-low text-on-surface-variant font-title-sm text-xs font-bold flex items-center justify-center gap-1 hover:bg-surface-container transition-colors border border-outline-variant/20"
+                >
+                  <span className="material-symbols-outlined text-[16px]">close</span>
+                  Clear
+                </button>
+              </div>
             </>
           )}
         </div>

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Header, BottomNav } from '../components';
 import { fetchReportByTicket, CivicReport } from '../supabase';
+import { Map, Marker } from '@vis.gl/react-google-maps';
 
 export default function TrackingPage() {
   const [searchParams] = useSearchParams();
@@ -23,9 +24,9 @@ export default function TrackingPage() {
             ticket_id: ticketParam,
             category: 'Hazardous Pothole',
             description: 'Severe road depression reported on Main St.',
-            location_address: 'Main St. & 4th Ave, Downtown',
-            latitude: 40.7128,
-            longitude: -74.0060,
+            location_address: 'LPU',
+            latitude: 31.25471,
+            longitude: 75.70434,
             image_url: '/pothole.jpg',
             status: 'In Progress',
             priority: 'High',
@@ -47,8 +48,8 @@ export default function TrackingPage() {
     category: 'Pothole',
     description: 'Road depression reported by citizen.',
     location_address: 'Main St.',
-    latitude: 40.7128,
-    longitude: -74.0060,
+    latitude: 31.25471,
+    longitude: 75.70434,
     image_url: '/pothole.jpg',
     status: 'In Progress' as const,
     priority: 'High' as const,
@@ -73,7 +74,7 @@ export default function TrackingPage() {
     <div className="w-full h-[100dvh] flex flex-col bg-surface">
       <Header />
       <main className="flex-1 flex flex-col relative w-full h-full pt-20 pb-20 md:pb-8 md:pl-24 overflow-y-auto">
-        <section className="w-full px-gutter-lg pt-space-lg pb-space-md border-b border-outline-variant/20 shadow-sm bg-surface sticky top-0 z-10">
+        <section className="w-full px-gutter-lg pt-space-lg pb-space-md border-b border-outline-variant/20 shadow-sm bg-surface sticky top-0 z-40">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-space-sm">
               <div className="flex flex-col">
@@ -112,33 +113,69 @@ export default function TrackingPage() {
           </div>
           
           <div className="rounded-2xl bg-surface-container-lowest p-space-md shadow-sm border border-outline-variant/20 flex flex-col gap-3 relative overflow-hidden mt-4">
-            <div className="flex items-center justify-between relative z-10">
-              <div className="flex items-center gap-2 text-primary">
-                <span className="material-symbols-outlined text-[22px]">timer</span>
-                <span className="font-title-md text-title-md text-on-surface font-bold">Target SLA: 8 Hours</span>
-              </div>
-              <span className="font-label-sm text-[10px] sm:text-label-sm text-tertiary-fixed-dim bg-tertiary-container/20 border border-tertiary-fixed-dim/30 px-3 py-1 rounded-full font-bold uppercase tracking-wider">
-                On Track (72%)
-              </span>
-            </div>
-            <div className="w-full bg-surface-container-highest rounded-full h-2.5 overflow-hidden shadow-inner relative z-10">
-              <div className="bg-gradient-to-r from-primary via-primary to-tertiary-fixed h-full rounded-full transition-all duration-1000 ease-out shadow-[0_0_8px_rgba(0,55,176,0.6)]" style={{ width: '72%' }}></div>
-            </div>
-            <div className="flex items-center justify-between text-on-surface-variant font-label-sm text-label-sm relative z-10">
-              <span className="font-medium">Elapsed: 4h 13m</span>
-              <span className="text-on-surface font-bold">Est. Finish: Today, 6:00 PM</span>
-            </div>
+            {(() => {
+              const priority = currentReport.priority || 'Medium';
+              const slaHours = priority === 'Critical' || priority === 'High' ? 8 : (priority === 'Medium' ? 24 : 48);
+              
+              const createdTime = currentReport.created_at ? new Date(currentReport.created_at).getTime() : Date.now() - 4 * 3600 * 1000 - 13 * 60 * 1000;
+              const now = Date.now();
+              const elapsedMs = now - createdTime;
+              const elapsedHours = Math.floor(elapsedMs / (1000 * 60 * 60));
+              const elapsedMins = Math.floor((elapsedMs % (1000 * 60 * 60)) / (1000 * 60));
+              
+              const slaMs = slaHours * 3600 * 1000;
+              let percentage = Math.min(100, Math.max(0, (elapsedMs / slaMs) * 100));
+              if (currentReport.status === 'Resolved') percentage = 100;
+              
+              const isOverdue = elapsedMs > slaMs && currentReport.status !== 'Resolved';
+              
+              const estFinish = new Date(createdTime + slaMs);
+              const finishText = estFinish.toLocaleDateString() === new Date().toLocaleDateString() 
+                ? `Today, ${estFinish.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`
+                : estFinish.toLocaleDateString([], {month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit'});
+
+              return (
+                <>
+                  <div className="flex items-center justify-between relative z-10">
+                    <div className={`flex items-center gap-2 ${isOverdue ? 'text-error' : 'text-primary'}`}>
+                      <span className="material-symbols-outlined text-[22px]">{isOverdue ? 'warning' : 'timer'}</span>
+                      <span className="font-title-md text-title-md text-on-surface font-bold">Target SLA: {slaHours} Hours</span>
+                    </div>
+                    <span className={`font-label-sm text-[10px] sm:text-label-sm px-3 py-1 rounded-full font-bold uppercase tracking-wider ${
+                      currentReport.status === 'Resolved' 
+                        ? 'text-tertiary-fixed-dim bg-tertiary-container/20 border border-tertiary-fixed-dim/30' 
+                        : isOverdue
+                          ? 'text-error bg-error/10 border border-error/30'
+                          : 'text-primary bg-primary/10 border border-primary/30'
+                    }`}>
+                      {currentReport.status === 'Resolved' ? 'Completed' : isOverdue ? 'Overdue' : `On Track (${Math.round(percentage)}%)`}
+                    </span>
+                  </div>
+                  <div className="w-full bg-surface-container-highest rounded-full h-2.5 overflow-hidden shadow-inner relative z-10">
+                    <div className={`h-full rounded-full transition-all duration-1000 ease-out ${
+                      currentReport.status === 'Resolved' ? 'bg-tertiary' : isOverdue ? 'bg-error' : 'bg-gradient-to-r from-primary via-primary to-tertiary-fixed shadow-[0_0_8px_rgba(0,55,176,0.6)]'
+                    }`} style={{ width: `${percentage}%` }}></div>
+                  </div>
+                  <div className="flex items-center justify-between text-on-surface-variant font-label-sm text-label-sm relative z-10">
+                    <span className="font-medium">Elapsed: {elapsedHours}h {elapsedMins}m</span>
+                    <span className="text-on-surface font-bold">
+                      {currentReport.status === 'Resolved' ? 'Resolved within SLA' : `Est. Finish: ${finishText}`}
+                    </span>
+                  </div>
+                </>
+              );
+            })()}
           </div>
         </section>
 
         <section className="grid grid-cols-1 md:grid-cols-3 gap-space-md p-gutter-lg pt-4">
           <div className="md:col-span-1 rounded-2xl bg-surface-container-lowest shadow-sm border border-outline-variant/20 p-space-sm flex flex-col gap-space-sm">
-            <div className="relative w-full h-40 rounded-xl overflow-hidden shadow-inner group">
+            <div className="relative w-full h-56 rounded-xl overflow-hidden shadow-inner group">
               <img alt={currentReport.category} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" src={currentReport.image_url || "/pothole.jpg"} />
               <div className="absolute inset-0 bg-gradient-to-t from-on-surface/80 via-transparent to-on-surface/40 pointer-events-none"></div>
               <div className="absolute top-2 left-2 right-2 flex items-center justify-between">
-                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-on-error font-label-sm text-[10px] font-bold uppercase tracking-wider shadow-md backdrop-blur-md ${currentReport.priority === 'High' ? 'bg-error/90' : 'bg-primary/90'}`}>
-                  {currentReport.priority} Priority 🔴
+                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-on-error font-label-sm text-[10px] font-bold uppercase tracking-wider shadow-md backdrop-blur-md ${currentReport.priority === 'High' || currentReport.priority === 'Critical' ? 'bg-error/90' : 'bg-primary/90'}`}>
+                  {currentReport.priority} Priority {currentReport.priority === 'High' || currentReport.priority === 'Critical' ? '🔴' : '🔵'}
                 </span>
                 <span className="bg-surface-container-lowest/80 text-on-surface font-mono text-[10px] px-2 py-0.5 rounded font-bold backdrop-blur-sm">
                   {currentReport.ai_confidence || 95}% AI Confidence
@@ -164,34 +201,48 @@ export default function TrackingPage() {
             
             <div className="flex items-center justify-between relative z-10">
               <div className="flex items-center gap-2">
-                <span className="relative flex h-3 w-3">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-error opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-3 w-3 bg-error shadow-[0_0_8px_rgba(186,26,26,0.8)]"></span>
-                </span>
-                <span className="font-title-md text-title-md text-on-surface font-bold tracking-tight">Live Crew Dispatch</span>
+                {(currentReport.status === 'In Progress' || currentReport.status === 'Verified') && (
+                  <span className="relative flex h-3 w-3">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-error opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-3 w-3 bg-error shadow-[0_0_8px_rgba(186,26,26,0.8)]"></span>
+                  </span>
+                )}
+                <span className="font-title-md text-title-md text-on-surface font-bold tracking-tight">Location Data</span>
               </div>
-              <span className="font-label-sm text-label-sm text-primary font-bold bg-primary/10 px-3 py-1 rounded-full border border-primary/20">GPS Active</span>
+              {(currentReport.status === 'In Progress' || currentReport.status === 'Verified') && (
+                <span className="font-label-sm text-label-sm text-primary font-bold bg-primary/10 px-3 py-1 rounded-full border border-primary/20">GPS Active</span>
+              )}
             </div>
             
-            <div className="relative w-full h-40 rounded-xl overflow-hidden bg-surface-container-high flex items-center justify-center shadow-inner border border-outline-variant/10 relative z-10">
-              <span className="material-symbols-outlined animate-spin text-on-surface-variant/50">progress_activity</span>
+            <div className="relative w-full h-64 rounded-xl overflow-hidden bg-surface-container-high shadow-inner border border-outline-variant/10 z-10 isolate">
+              <Map
+                defaultZoom={16}
+                defaultCenter={{ lat: currentReport.latitude, lng: currentReport.longitude }}
+                disableDefaultUI={true}
+                gestureHandling="greedy"
+                style={{width: '100%', height: '100%'}}
+              >
+                <Marker position={{ lat: currentReport.latitude, lng: currentReport.longitude }} />
+              </Map>
             </div>
 
-            <div className="flex items-start justify-between gap-space-sm p-space-sm rounded-xl bg-surface-container-low border border-outline-variant/10 relative z-10">
-              <div className="flex items-start gap-3 min-w-0">
-                <div className="w-10 h-10 rounded-full bg-primary-fixed flex items-center justify-center text-on-primary-fixed shrink-0 shadow-inner">
-                  <span className="material-symbols-outlined text-[22px]">engineering</span>
+            {(currentReport.status === 'In Progress' || currentReport.status === 'Resolved') && (
+              <div className="flex items-start justify-between gap-space-sm p-space-sm rounded-xl bg-surface-container-low border border-outline-variant/10 relative z-10 mt-2">
+                <div className="flex items-start gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-full bg-primary-fixed flex items-center justify-center text-on-primary-fixed shrink-0 shadow-inner">
+                    <span className="material-symbols-outlined text-[22px]">engineering</span>
+                  </div>
+                  <div className="flex flex-col min-w-0">
+                    <span className="font-label-sm text-label-sm text-on-surface-variant font-medium">Assigned Lead</span>
+                    <span className="font-title-sm text-title-sm text-on-surface font-bold truncate">{currentReport.assigned_lead || 'Pending Assignment'}</span>
+                    <span className="font-body-sm text-[11px] text-on-surface-variant truncate">{currentReport.truck_id || 'Waiting for dispatch'}</span>
+                  </div>
                 </div>
-                <div className="flex flex-col min-w-0">
-                  <span className="font-label-sm text-label-sm text-on-surface-variant font-medium">Assigned Lead</span>
-                  <span className="font-title-sm text-title-sm text-on-surface font-bold truncate">Officer Raj Kumar</span>
-                  <span className="font-body-sm text-[11px] text-on-surface-variant truncate">Truck #KA-03-9912</span>
-                </div>
+                <a className="w-10 h-10 rounded-xl bg-surface-container-lowest border border-outline-variant/30 text-primary flex items-center justify-center shrink-0 active:scale-95 transition-transform shadow-sm hover:bg-surface-container-low" href={`tel:${currentReport.lead_mobile_number || '+1800555019'}`}>
+                  <span className="material-symbols-outlined text-[20px]">call</span>
+                </a>
               </div>
-              <a className="w-10 h-10 rounded-xl bg-surface-container-lowest border border-outline-variant/30 text-primary flex items-center justify-center shrink-0 active:scale-95 transition-transform shadow-sm hover:bg-surface-container-low" href="tel:+1800555019">
-                <span className="material-symbols-outlined text-[20px]">call</span>
-              </a>
-            </div>
+            )}
           </div>
         </section>
 
@@ -204,14 +255,17 @@ export default function TrackingPage() {
             <div className="relative flex flex-col ml-4 relative z-10">
               <div className="absolute left-[15px] top-4 bottom-8 w-1 rounded-full bg-surface-container-highest"></div>
               
+              {/* Step 1: Reported */}
               <div className="relative flex items-start gap-space-lg pb-space-lg">
-                <div className="w-8 h-8 rounded-full bg-tertiary-fixed text-on-tertiary-fixed flex items-center justify-center shrink-0 z-10 shadow-sm border-2 border-surface-container-lowest ring-2 ring-tertiary/20">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 z-10 shadow-sm border-2 border-surface-container-lowest ring-2 ${true ? 'bg-tertiary-fixed text-on-tertiary-fixed ring-tertiary/20' : 'bg-surface-container-high text-on-surface-variant ring-transparent'}`}>
                   <span className="material-symbols-outlined text-[16px] font-bold">done</span>
                 </div>
                 <div className="flex-1 flex flex-col">
                   <div className="flex items-baseline justify-between">
                     <span className="font-title-md text-title-md text-on-surface font-bold">Report Logged in Supabase</span>
-                    <span className="font-label-sm text-label-sm text-on-surface-variant font-mono">10:32 AM</span>
+                    <span className="font-label-sm text-label-sm text-on-surface-variant font-mono">
+                      {currentReport.created_at ? new Date(currentReport.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '10:32 AM'}
+                    </span>
                   </div>
                   <p className="font-body-sm text-body-sm text-on-surface-variant mt-1">
                     Citizen report stored with AI image evidence in PostgreSQL database.
@@ -219,24 +273,79 @@ export default function TrackingPage() {
                 </div>
               </div>
               
-              <div className="relative flex items-start gap-space-lg pb-space-lg group">
-                <div className="absolute left-[15px] top-8 -bottom-4 w-1 rounded-full bg-gradient-to-b from-primary via-primary/50 to-transparent"></div>
-                <div className="w-8 h-8 rounded-full bg-primary text-on-primary flex items-center justify-center shrink-0 z-10 shadow-[0_0_12px_rgba(0,55,176,0.6)] border-2 border-surface-container-lowest">
-                  <span className="material-symbols-outlined text-[16px] font-bold animate-spin" style={{ animationDuration: '3s' }}>autorenew</span>
-                </div>
-                <div className="flex-1 flex flex-col p-space-md rounded-2xl bg-primary/5 border border-primary/20 shadow-sm transition-all group-hover:bg-primary/10">
-                  <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-1 mb-2">
-                    <span className="font-title-md text-title-md text-primary font-bold flex items-center gap-2">
-                      Repair In Progress
-                      <span className="w-2 h-2 rounded-full bg-primary shadow-[0_0_8px_rgba(0,55,176,0.8)] animate-pulse"></span>
-                    </span>
-                    <span className="font-label-sm text-[11px] text-primary font-mono font-bold bg-primary/10 px-2 py-0.5 rounded-full">Active</span>
+              {/* Step 2: Verified */}
+              {(currentReport.status === 'Verified' || currentReport.status === 'In Progress' || currentReport.status === 'Resolved') && (
+                <div className="relative flex items-start gap-space-lg pb-space-lg group">
+                  <div className="w-8 h-8 rounded-full bg-tertiary-fixed text-on-tertiary-fixed flex items-center justify-center shrink-0 z-10 shadow-sm border-2 border-surface-container-lowest ring-2 ring-tertiary/20">
+                    <span className="material-symbols-outlined text-[16px] font-bold">verified</span>
                   </div>
-                  <p className="font-body-md text-body-md text-on-surface leading-relaxed">
-                    Crew dispatched by municipal team for {currentReport.category}. Inspection and repair work underway.
-                  </p>
+                  <div className="flex-1 flex flex-col">
+                    <div className="flex items-baseline justify-between">
+                      <span className="font-title-md text-title-md text-on-surface font-bold">AI Verification Complete</span>
+                    </div>
+                    <p className="font-body-sm text-body-sm text-on-surface-variant mt-1">
+                      Issue automatically categorized and routed to {currentReport.department}.
+                    </p>
+                  </div>
                 </div>
-              </div>
+              )}
+
+              {/* Step 3: In Progress */}
+              {(currentReport.status === 'In Progress' || currentReport.status === 'Resolved') && (
+                <div className="relative flex items-start gap-space-lg pb-space-lg group">
+                  {currentReport.status === 'In Progress' && (
+                    <div className="absolute left-[15px] top-8 -bottom-4 w-1 rounded-full bg-gradient-to-b from-primary via-primary/50 to-transparent"></div>
+                  )}
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 z-10 border-2 border-surface-container-lowest ${
+                    currentReport.status === 'Resolved' 
+                      ? 'bg-tertiary-fixed text-on-tertiary-fixed ring-2 ring-tertiary/20' 
+                      : 'bg-primary text-on-primary shadow-[0_0_12px_rgba(0,55,176,0.6)]'
+                  }`}>
+                    <span className={`material-symbols-outlined text-[16px] font-bold ${currentReport.status === 'In Progress' ? 'animate-spin' : ''}`} style={{ animationDuration: '3s' }}>
+                      {currentReport.status === 'Resolved' ? 'done' : 'autorenew'}
+                    </span>
+                  </div>
+                  <div className={`flex-1 flex flex-col ${currentReport.status === 'In Progress' ? 'p-space-md rounded-2xl bg-primary/5 border border-primary/20 shadow-sm transition-all group-hover:bg-primary/10' : ''}`}>
+                    <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-1 mb-2">
+                      <span className={`font-title-md text-title-md font-bold flex items-center gap-2 ${currentReport.status === 'In Progress' ? 'text-primary' : 'text-on-surface'}`}>
+                        Repair In Progress
+                        {currentReport.status === 'In Progress' && (
+                          <span className="w-2 h-2 rounded-full bg-primary shadow-[0_0_8px_rgba(0,55,176,0.8)] animate-pulse"></span>
+                        )}
+                      </span>
+                      {currentReport.status === 'In Progress' && (
+                        <span className="font-label-sm text-[11px] text-primary font-mono font-bold bg-primary/10 px-2 py-0.5 rounded-full">Active</span>
+                      )}
+                    </div>
+                    <p className={`font-body-md text-body-md ${currentReport.status === 'In Progress' ? 'text-on-surface' : 'text-on-surface-variant font-body-sm text-body-sm'} leading-relaxed`}>
+                      Crew dispatched by municipal team for {currentReport.category}. Inspection and repair work underway.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Step 4: Resolved */}
+              {currentReport.status === 'Resolved' && (
+                <div className="relative flex items-start gap-space-lg pb-space-lg group">
+                  <div className="absolute left-[15px] top-8 -bottom-4 w-1 rounded-full bg-gradient-to-b from-tertiary via-tertiary/50 to-transparent"></div>
+                  <div className="w-8 h-8 rounded-full bg-tertiary text-on-tertiary flex items-center justify-center shrink-0 z-10 shadow-[0_0_12px_rgba(0,80,31,0.6)] border-2 border-surface-container-lowest">
+                    <span className="material-symbols-outlined text-[16px] font-bold">check_circle</span>
+                  </div>
+                  <div className="flex-1 flex flex-col p-space-md rounded-2xl bg-tertiary/5 border border-tertiary/20 shadow-sm transition-all group-hover:bg-tertiary/10">
+                    <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-1 mb-2">
+                      <span className="font-title-md text-title-md text-tertiary font-bold flex items-center gap-2">
+                        Issue Resolved
+                        <span className="w-2 h-2 rounded-full bg-tertiary shadow-[0_0_8px_rgba(0,80,31,0.8)]"></span>
+                      </span>
+                      <span className="font-label-sm text-[11px] text-tertiary font-mono font-bold bg-tertiary/10 px-2 py-0.5 rounded-full">Completed</span>
+                    </div>
+                    <p className="font-body-md text-body-md text-on-surface leading-relaxed">
+                      The issue has been fully resolved by the maintenance crew and verified.
+                    </p>
+                  </div>
+                </div>
+              )}
+              
             </div>
           </div>
         </section>

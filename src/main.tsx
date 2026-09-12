@@ -11,12 +11,13 @@ import TrackingPage from './pages/tracking';
 import ProfilePage from './pages/profile';
 import MapPage from './pages/map';
 import AuthorityPortal from './pages/authority';
+import AlertsPage from './pages/alerts';
 
 import { APIProvider } from '@vis.gl/react-google-maps';
 
 function App() {
   return (
-    <APIProvider apiKey={import.meta.env.VITE_GOOGLE_MAPS_API_KEY}>
+    <APIProvider apiKey={import.meta.env.VITE_GOOGLE_MAPS_API_KEY} libraries={['places', 'geocoding']}>
       <HashRouter>
         <Routes>
           <Route path="/" element={<Navigate to="/home" replace />} />
@@ -28,6 +29,7 @@ function App() {
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/map" element={<MapPage />} />
           <Route path="/admin" element={<AuthorityPortal />} />
+          <Route path="/notifications" element={<AlertsPage />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </HashRouter>

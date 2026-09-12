@@ -77,9 +77,9 @@ export function Header({ title = '', showBack = false, showBrand = true }: Heade
                   </div>
                 </Link>
               </div>
-              <div className="p-3 bg-surface-container text-center">
+              <Link to="/notifications" className="p-3 bg-surface-container text-center block" onClick={() => setShowNotifications(false)}>
                 <span className="font-label-sm text-label-sm text-on-surface-variant hover:text-primary transition-colors uppercase tracking-wider font-bold cursor-pointer">View all alerts</span>
-              </div>
+              </Link>
             </div>
           )}
 

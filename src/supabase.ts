@@ -18,6 +18,9 @@ export interface CivicReport {
   priority: 'Low' | 'Medium' | 'High' | 'Critical';
   department: string;
   ai_confidence?: number;
+  assigned_lead?: string;
+  lead_mobile_number?: string;
+  truck_id?: string;
   created_at?: string;
   updated_at?: string;
 }
@@ -93,4 +96,53 @@ export async function uploadImage(file: File): Promise<string> {
 
   const { data } = supabase.storage.from('photos').getPublicUrl(filePath);
   return data.publicUrl;
+}
+
+export interface FieldUnit {
+  id: string;
+  name: string;
+  mobile_number: string;
+  department: string;
+  status: string;
+  current_task: string | null;
+  created_at: string;
+}
+
+export async function fetchFieldUnits() {
+  const { data, error } = await supabase
+    .from('field_units')
+    .select('*')
+    .order('name', { ascending: true });
+
+  if (error) {
+    console.error('Error fetching field units:', error);
+    throw error;
+  }
+  return data as FieldUnit[];
+}
+
+export async function createFieldUnit(unit: Omit<FieldUnit, 'id' | 'created_at'>) {
+  const { data, error } = await supabase
+    .from('field_units')
+    .insert([unit])
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error creating field unit:', error);
+    throw error;
+  }
+  return data as FieldUnit;
+}
+
+export async function deleteFieldUnit(id: string) {
+  const { error } = await supabase
+    .from('field_units')
+    .delete()
+    .eq('id', id);
+
+  if (error) {
+    console.error('Error deleting field unit:', error);
+    throw error;
+  }
 }
