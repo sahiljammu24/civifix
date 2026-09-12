@@ -10,7 +10,6 @@ export default function MapPage() {
   const [reports, setReports] = useState<CivicReport[]>([]);
   const [filter, setFilter] = useState('All');
   const [searchTerm, setSearchTerm] = useState('');
-  const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
   const [hasRequestedLoc, setHasRequestedLoc] = useState(false);
   const [droppedPin, setDroppedPin] = useState<{lat: number, lng: number} | null>(null);
   const map = useMap("DEMO_MAP_ID");
@@ -25,8 +24,31 @@ export default function MapPage() {
   }, []);
 
   const locateUser = (silent = false) => {
+    // IP-based fallback for approximate location
+    const fallbackToIP = async (isSilent: boolean) => {
+      try {
+        const res = await fetch('https://ipapi.co/json/');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.latitude && data.longitude) {
+            const pos = { lat: Number(data.latitude), lng: Number(data.longitude) };
+            setDroppedPin(pos);
+            setSelectedIssue(null);
+            if (map) {
+              map.panTo(pos);
+              map.setZoom(13);
+            }
+            if (!isSilent) showToast('📍 Approximate location found via IP');
+            return;
+          }
+        }
+      } catch {
+        // ignore
+      }
+      if (!isSilent) showToast("Unable to get location. Please check GPS settings.");
+    };
+
     if (!navigator.geolocation) {
-      if (!silent) showToast("Geolocation is not supported by your browser.");
       fallbackToIP(silent);
       return;
     }
@@ -36,33 +58,12 @@ export default function MapPage() {
         lat: position.coords.latitude,
         lng: position.coords.longitude,
       };
-      setUserLocation(pos);
+      setDroppedPin(pos);
+      setSelectedIssue(null);
       if (map) {
         map.panTo(pos);
         map.setZoom(15);
       }
-    };
-
-    // IP-based fallback for approximate location
-    const fallbackToIP = async (isSilent: boolean) => {
-      try {
-        const res = await fetch('https://ipapi.co/json/');
-        if (res.ok) {
-          const data = await res.json();
-          if (data.latitude && data.longitude) {
-            const pos = { lat: data.latitude, lng: data.longitude };
-            setUserLocation(pos);
-            if (map) {
-              map.panTo(pos);
-              map.setZoom(13);
-            }
-            return;
-          }
-        }
-      } catch {
-        // ignore
-      }
-      if (!isSilent) showToast("Unable to get location. Please check GPS settings.");
     };
 
     const onError = (error: GeolocationPositionError) => {
@@ -124,6 +125,7 @@ export default function MapPage() {
   }, []);
 
   const filteredReports = reports.filter(r => {
+    if (r.status === 'Cancelled') return false;
     const matchesFilter = filter === 'All' || (r.category && r.category.toLowerCase().includes(filter.toLowerCase()));
     const matchesSearch = !searchTerm || 
       (r.ticket_id && r.ticket_id.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -156,21 +158,14 @@ export default function MapPage() {
                 position={{ lat: issue.latitude, lng: issue.longitude }}
                 onClick={() => { setSelectedIssue(issue); setDroppedPin(null); }}
                 title={`${issue.ticket_id} - ${issue.category}`}
+                icon={issue.status === 'Resolved' ? "https://maps.google.com/mapfiles/ms/icons/green-dot.png" : "https://maps.google.com/mapfiles/ms/icons/red-dot.png"}
               />
             ))}
-            {userLocation && (
-              <Marker 
-                position={userLocation} 
-                icon="https://maps.google.com/mapfiles/ms/icons/blue-dot.png" 
-                title="Your Location"
-                zIndex={100}
-              />
-            )}
             {droppedPin && (
               <Marker
                 position={droppedPin}
-                icon="https://maps.google.com/mapfiles/ms/icons/green-dot.png"
-                title="Dropped Pin"
+                icon="https://maps.google.com/mapfiles/ms/icons/blue-dot.png"
+                title="Selected Location"
                 zIndex={99}
                 draggable={true}
                 onDragEnd={(e: google.maps.MapMouseEvent) => {
@@ -254,16 +249,16 @@ export default function MapPage() {
           {droppedPin && (
             <>
               <div className="flex gap-4">
-                <div className="w-14 h-14 shrink-0 rounded-2xl bg-tertiary-container/30 flex items-center justify-center shadow-inner">
-                  <span className="material-symbols-outlined text-[28px] text-tertiary">location_on</span>
+                <div className="w-14 h-14 shrink-0 rounded-2xl bg-primary-container/30 flex items-center justify-center shadow-inner">
+                  <span className="material-symbols-outlined text-[28px] text-primary">location_on</span>
                 </div>
                 <div className="flex-1 flex flex-col justify-center min-w-0 py-1">
-                  <span className="font-label-sm text-[11px] font-bold uppercase tracking-widest text-tertiary">Dropped Pin</span>
+                  <span className="font-label-sm text-[11px] font-bold uppercase tracking-widest text-primary">Selected Location</span>
                   <span className="font-mono text-[12px] text-on-surface-variant mt-1">
                     {droppedPin.lat.toFixed(5)}, {droppedPin.lng.toFixed(5)}
                   </span>
                   <span className="font-body-sm text-[11px] text-on-surface-variant/70 mt-0.5">
-                    Drag the green pin to adjust position
+                    Drag the blue pin to adjust position
                   </span>
                 </div>
               </div>

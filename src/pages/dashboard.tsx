@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Header, BottomNav } from '../components';
-import { fetchReports, CivicReport } from '../supabase';
+import { fetchReports, CivicReport, cancelReport } from '../supabase';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function DashboardPage() {
@@ -9,6 +9,30 @@ export default function DashboardPage() {
   const [reports, setReports] = useState<CivicReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [localAvatar, setLocalAvatar] = useState<string | null>(null);
+
+  // Cancellation state
+  const [cancelTargetId, setCancelTargetId] = useState<string | null>(null);
+  const [cancelReason, setCancelReason] = useState('Already solved');
+  const [isCancelling, setIsCancelling] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+
+  const handleCancelSubmit = async () => {
+    if (!cancelTargetId) return;
+    setIsCancelling(true);
+    try {
+      await cancelReport(cancelTargetId, cancelReason);
+      setReports(reports.map(r => r.id === cancelTargetId ? { ...r, status: 'Cancelled', cancellation_reason: cancelReason } : r));
+      setToast('Report cancelled successfully');
+      setTimeout(() => setToast(null), 3000);
+      setCancelTargetId(null);
+    } catch (err) {
+      console.error(err);
+      setToast('Failed to cancel report');
+      setTimeout(() => setToast(null), 3000);
+    } finally {
+      setIsCancelling(false);
+    }
+  };
 
   useEffect(() => {
     async function load() {
@@ -169,6 +193,7 @@ export default function DashboardPage() {
                       {/* Status Icon */}
                       <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 shadow-sm transition-transform group-hover:scale-105 ${
                         item.status === 'Resolved' ? 'bg-tertiary-container text-on-tertiary-container' : 
+                        item.status === 'Cancelled' ? 'bg-surface-container-high text-on-surface-variant opacity-70' :
                         item.status === 'In Progress' ? 'bg-secondary-container text-on-secondary-container' : 
                         item.status === 'Verified' ? 'bg-primary-container text-on-primary-container' :
                         'bg-surface-container-high text-on-surface-variant'
@@ -195,6 +220,7 @@ export default function DashboardPage() {
                         <div className="flex items-center gap-2 mt-1.5">
                           <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
                             item.status === 'Resolved' ? 'bg-tertiary-fixed text-on-tertiary-fixed' : 
+                            item.status === 'Cancelled' ? 'bg-surface-container-high text-on-surface-variant opacity-70' :
                             item.status === 'In Progress' ? 'bg-secondary-fixed text-on-secondary-fixed' : 
                             item.status === 'Verified' ? 'bg-primary-fixed text-on-primary-fixed' :
                             'bg-surface-container-high text-on-surface-variant'
@@ -207,9 +233,24 @@ export default function DashboardPage() {
                         </div>
                       </div>
                       
-                      {/* Arrow */}
-                      <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-on-surface-variant group-hover:bg-surface-container-highest group-hover:text-primary transition-colors">
-                        <span className="material-symbols-outlined text-[20px]">chevron_right</span>
+                      {/* Actions */}
+                      <div className="flex items-center gap-1 shrink-0">
+                        {item.status !== 'Resolved' && item.status !== 'Cancelled' && (
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setCancelTargetId(item.id!);
+                            }}
+                            className="w-8 h-8 rounded-full flex items-center justify-center text-error hover:bg-error/10 transition-colors"
+                            title="Cancel Issue"
+                          >
+                            <span className="material-symbols-outlined text-[18px]">cancel</span>
+                          </button>
+                        )}
+                        <div className="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant group-hover:bg-surface-container-highest group-hover:text-primary transition-colors">
+                          <span className="material-symbols-outlined text-[20px]">chevron_right</span>
+                        </div>
                       </div>
                     </Link>
                   ))}
@@ -218,6 +259,54 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
+        
+        {cancelTargetId && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-scrim/50 backdrop-blur-sm animate-fade-in">
+            <div className="bg-surface-container-lowest rounded-3xl w-full max-w-sm p-6 shadow-elevation-3 relative">
+              <h3 className="font-headline-sm text-on-surface mb-2">Cancel Report</h3>
+              <p className="font-body-md text-on-surface-variant mb-4">Are you sure you want to cancel this report? Please tell us why.</p>
+              
+              <div className="flex flex-col gap-2 mb-6">
+                {['Already solved', 'Reported by mistake', 'Other'].map(reason => (
+                  <label key={reason} className="flex items-center gap-3 p-3 rounded-xl border border-outline-variant/30 cursor-pointer hover:bg-surface-container-low transition-colors select-none">
+                    <input 
+                      type="radio" 
+                      name="cancel_reason" 
+                      value={reason} 
+                      checked={cancelReason === reason}
+                      onChange={(e) => setCancelReason(e.target.value)}
+                      className="w-4 h-4 text-primary bg-surface border-outline accent-primary"
+                    />
+                    <span className="font-body-md text-on-surface">{reason}</span>
+                  </label>
+                ))}
+              </div>
+
+              <div className="flex justify-end gap-2">
+                <button 
+                  onClick={() => setCancelTargetId(null)}
+                  disabled={isCancelling}
+                  className="px-4 py-2 font-label-lg font-bold text-on-surface-variant hover:bg-surface-container-high rounded-full transition-colors disabled:opacity-50"
+                >
+                  Keep It
+                </button>
+                <button 
+                  onClick={handleCancelSubmit}
+                  disabled={isCancelling}
+                  className="px-4 py-2 font-label-lg font-bold bg-error text-on-error hover:bg-error/90 rounded-full transition-colors flex items-center justify-center gap-2 disabled:opacity-50 min-w-[100px]"
+                >
+                  {isCancelling ? <span className="material-symbols-outlined animate-spin text-[18px]">progress_activity</span> : 'Cancel Issue'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {toast && (
+          <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 bg-inverse-surface text-inverse-on-surface px-4 py-2 rounded-xl shadow-lg font-body-sm animate-fade-in text-center whitespace-nowrap">
+            {toast}
+          </div>
+        )}
       </main>
       <BottomNav />
     </>

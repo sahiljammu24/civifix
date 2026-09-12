@@ -114,6 +114,18 @@ export default function TrackingPage() {
           
           <div className="rounded-2xl bg-surface-container-lowest p-space-md shadow-sm border border-outline-variant/20 flex flex-col gap-3 relative overflow-hidden mt-4">
             {(() => {
+              if (currentReport.status === 'Cancelled') {
+                return (
+                  <div className="flex flex-col items-center justify-center p-6 text-center z-10 relative bg-surface-container-highest rounded-xl border border-outline-variant/30 overflow-hidden">
+                    <span className="material-symbols-outlined text-on-surface-variant text-[40px] mb-3 relative z-10">cancel</span>
+                    <h3 className="font-headline-sm text-on-surface font-bold mb-1 relative z-10">Issue Cancelled</h3>
+                    <p className="font-body-md text-on-surface-variant max-w-sm relative z-10">
+                      {currentReport.cancellation_reason ? `Reason: ${currentReport.cancellation_reason}` : 'This report was cancelled and is no longer being tracked.'}
+                    </p>
+                  </div>
+                );
+              }
+
               const priority = currentReport.priority || 'Medium';
               const slaHours = priority === 'Critical' || priority === 'High' ? 8 : (priority === 'Medium' ? 24 : 48);
               
@@ -341,6 +353,27 @@ export default function TrackingPage() {
                     </div>
                     <p className="font-body-md text-body-md text-on-surface leading-relaxed">
                       The issue has been fully resolved by the maintenance crew and verified.
+                    </p>
+                  </div>
+                </div>
+              )}
+              
+              {/* Step 5: Cancelled */}
+              {currentReport.status === 'Cancelled' && (
+                <div className="relative flex items-start gap-space-lg pb-space-lg group">
+                  <div className="w-8 h-8 rounded-full bg-error text-on-error flex items-center justify-center shrink-0 z-10 shadow-[0_0_12px_rgba(186,26,26,0.6)] border-2 border-surface-container-lowest">
+                    <span className="material-symbols-outlined text-[16px] font-bold">cancel</span>
+                  </div>
+                  <div className="flex-1 flex flex-col p-space-md rounded-2xl bg-error/5 border border-error/20 shadow-sm transition-all group-hover:bg-error/10">
+                    <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-1 mb-2">
+                      <span className="font-title-md text-title-md text-error font-bold flex items-center gap-2">
+                        Issue Cancelled
+                        <span className="w-2 h-2 rounded-full bg-error shadow-[0_0_8px_rgba(186,26,26,0.8)]"></span>
+                      </span>
+                      <span className="font-label-sm text-[11px] text-error font-mono font-bold bg-error/10 px-2 py-0.5 rounded-full">Cancelled</span>
+                    </div>
+                    <p className="font-body-md text-body-md text-on-surface leading-relaxed">
+                      {currentReport.cancellation_reason ? `Cancellation Reason: ${currentReport.cancellation_reason}` : 'This issue has been cancelled and will not be processed.'}
                     </p>
                   </div>
                 </div>

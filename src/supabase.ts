@@ -25,7 +25,8 @@ export interface CivicReport {
   latitude: number;
   longitude: number;
   image_url?: string;
-  status: 'Reported' | 'Verified' | 'In Progress' | 'Resolved';
+  status: 'Reported' | 'Verified' | 'In Progress' | 'Resolved' | 'Cancelled';
+  cancellation_reason?: string;
   priority: 'Low' | 'Medium' | 'High' | 'Critical';
   department: string;
   ai_confidence?: number;
@@ -126,6 +127,21 @@ export async function updateReport(id: string, updates: Partial<CivicReport>) {
 
   if (error) {
     console.error('Error updating report:', error);
+    throw error;
+  }
+  return data as CivicReport;
+}
+
+export async function cancelReport(id: string, reason: string) {
+  const { data, error } = await supabase
+    .from('reports')
+    .update({ status: 'Cancelled', cancellation_reason: reason })
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error cancelling report:', error);
     throw error;
   }
   return data as CivicReport;
